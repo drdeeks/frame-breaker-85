@@ -1,7 +1,7 @@
 {
-  "name": "frame-breaker-'85",
+  "name": "frame-breaker-85",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@farcaster/miniapp-sdk": "^0.1.0",
     "@google/genai": "^0.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -17,5 +18,8 @@
     "@types/node": "^22.14.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
+  },
+  "engines": {
+    "node": ">=22.11.0"
   }
 }

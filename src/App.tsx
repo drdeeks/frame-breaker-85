@@ -4,8 +4,7 @@
 */
 import { GoogleGenAI, Type } from '@google/genai';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 // --- GAME CONFIGURATION ---
 const CANVAS_WIDTH = 800;
@@ -157,6 +156,21 @@ function App() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [initials, setInitials] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Initialize Farcaster Mini App SDK
+  useEffect(() => {
+    const initializeSDK = async () => {
+      try {
+        // Call ready() to hide splash screen and display content
+        await sdk.actions.ready();
+      } catch (error) {
+        console.error('Failed to initialize Farcaster Mini App SDK:', error);
+        // Continue without SDK if it fails
+      }
+    };
+
+    initializeSDK();
+  }, []);
 
   // Load leaderboard from localStorage
   useEffect(() => {
@@ -689,5 +703,4 @@ function App() {
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+export default App;

@@ -1,6 +1,16 @@
 # Frame Breaker '85
 
-An AI-powered brick breaker game with retro aesthetics and modern features. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.
+An AI-powered brick breaker game with retro aesthetics and modern features, built as a Farcaster Mini App. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.
+
+## 🚀 Farcaster Mini App
+
+This game is designed to run as a Mini App within Farcaster clients. It integrates with the Farcaster Mini App SDK to provide seamless authentication and native features.
+
+### Mini App Features
+- **Native Integration**: Runs within Farcaster clients
+- **Quick Auth**: Seamless authentication with Farcaster accounts
+- **Social Sharing**: Easy sharing of scores and achievements
+- **Responsive Design**: Optimized for mobile and desktop Farcaster clients
 
 ![Game Screenshot](https://via.placeholder.com/800x600/0d0221/00ffff?text=Frame+Breaker+'85)
 
@@ -51,8 +61,9 @@ An AI-powered brick breaker game with retro aesthetics and modern features. Each
 ## Installation & Setup
 
 ### Prerequisites
-- Node.js (v14 or higher)
+- Node.js (v22.11.0 or higher) - Required for Farcaster Mini Apps
 - Google Gemini AI API key
+- Farcaster account with Developer Mode enabled
 
 ### Environment Setup
 1. Clone the repository
@@ -63,13 +74,20 @@ An AI-powered brick breaker game with retro aesthetics and modern features. Each
 
 3. Create a `.env` file in the root directory:
    ```env
-   API_KEY=your_google_gemini_api_key_here
+   GEMINI_API_KEY=your_google_gemini_api_key_here
    ```
 
 4. Start the development server:
    ```bash
-   npm start
+   npm run dev
    ```
+
+### Farcaster Developer Mode
+To test this Mini App in Farcaster:
+1. Make sure you're logged in to Farcaster on mobile or desktop
+2. Visit: https://farcaster.xyz/~/settings/developer-tools
+3. Toggle on "Developer Mode"
+4. Use the developer tools to preview and test your Mini App
 
 ### Getting a Google Gemini API Key
 1. Visit [Google AI Studio](https://makersuite.google.com/)
@@ -84,6 +102,13 @@ An AI-powered brick breaker game with retro aesthetics and modern features. Each
 - **HTML5 Canvas** - High-performance 2D graphics
 - **Google Gemini AI** - Dynamic level generation
 - **CSS3** - Retro styling and animations
+- **Farcaster Mini App SDK** - Native Farcaster integration
+
+### Mini App Architecture
+- **SDK Integration**: Uses `@farcaster/miniapp-sdk` for native features
+- **Embed Metadata**: Proper OpenGraph and Mini App embed tags
+- **Responsive Design**: Optimized for Farcaster client viewports
+- **Authentication Ready**: Prepared for Farcaster Quick Auth integration
 
 ### Game Configuration
 - **Canvas Size**: 800x600 pixels
@@ -164,6 +189,27 @@ src/
 - Ensure touch events aren't being blocked
 - Try refreshing the page
 - Check if browser supports touch events
+
+## Mini App Deployment
+
+### Building for Production
+```bash
+npm run build
+```
+
+### Publishing to Farcaster
+1. Deploy your built application to a public URL (e.g., Vercel, Netlify)
+2. Update the URLs in `farcaster-miniapp.json` to match your deployment
+3. Use the Farcaster Developer Tools to submit your Mini App for review
+4. Once approved, your Mini App will be available in the Farcaster Mini App directory
+
+### Required Assets
+Make sure to create and upload these assets to your deployment:
+- `icon.png` - App icon (512x512px)
+- `og-image.png` - Open Graph image (1200x630px)
+- `splash.png` - Splash screen (1200x630px)
+- `hero.png` - Hero image for the Mini App directory
+- `screenshot1.png`, `screenshot2.png`, `screenshot3.png` - Game screenshots
 
 ## Contributing
 
