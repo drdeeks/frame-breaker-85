@@ -2,8 +2,6 @@
 
 An AI-powered brick breaker game with retro aesthetics and modern features. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.
 
-![Game Screenshot](https://via.placeholder.com/800x600/0d0221/00ffff?text=Frame+Breaker+'85)
-
 ## Features
 
 ### 🤖 AI-Generated Levels
