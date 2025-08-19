@@ -1,5 +1,6 @@
 # Frame Breaker '85
 
+<<<<<<< HEAD
 An AI-powered brick breaker game with retro aesthetics and modern features, built as a Farcaster Mini App. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.
 
 ## 🚀 Farcaster Mini App
@@ -37,6 +38,33 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 - Retro-style sound effects and visual feedback
 - High score leaderboard with 3-letter initials
 
+=======
+An AI-powered brick breaker game with retro aesthetics and modern features. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.
+
+## Features
+
+### 🤖 AI-Generated Levels
+- Each level layout is created by Google's Gemini AI
+- Unique patterns including spaceships, faces, and geometric designs
+- Fallback system ensures gameplay continuity if AI is unavailable
+
+### 🎮 Classic Gameplay with Modern Twists
+- **Power-ups:**
+  - 🟢 **Sticky (S)**: Ball sticks to paddle for 3 hits - perfect for precise aiming
+  - 🎨 **Paint (P)**: Choose a brick color to eliminate all bricks of that type
+  - 🛡️ **Invincible (I)**: 7 seconds of invincibility with increased ball speed
+
+- **Power-downs:**
+  - ➖ **Shrink Paddle (-)**: Reduces paddle size by 50% for 20 seconds
+  - ➕ **Add Bricks (+)**: Adds 15% more bricks to the current level
+
+### 🕹️ Retro Experience
+- Authentic 80s arcade aesthetics with neon colors
+- CRT scanline effects for authentic retro feel
+- Retro-style sound effects and visual feedback
+- High score leaderboard with 3-letter initials
+
+>>>>>>> 98e5a8cc8eac86436f395eb3fad162a56e857a5f
 ### 🎯 Game Mechanics
 - **Lives System**: Start with 3 lives
 - **Progressive Difficulty**: Each level brings new challenges
@@ -61,9 +89,14 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 ## Installation & Setup
 
 ### Prerequisites
+<<<<<<< HEAD
 - Node.js (v22.11.0 or higher) - Required for Farcaster Mini Apps
 - Google Gemini AI API key
 - Farcaster account with Developer Mode enabled
+=======
+- Node.js (v14 or higher)
+- Google Gemini AI API key
+>>>>>>> 98e5a8cc8eac86436f395eb3fad162a56e857a5f
 
 ### Environment Setup
 1. Clone the repository
@@ -74,11 +107,16 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 
 3. Create a `.env` file in the root directory:
    ```env
+<<<<<<< HEAD
    GEMINI_API_KEY=your_google_gemini_api_key_here
+=======
+   API_KEY=your_google_gemini_api_key_here
+>>>>>>> 98e5a8cc8eac86436f395eb3fad162a56e857a5f
    ```
 
 4. Start the development server:
    ```bash
+<<<<<<< HEAD
    npm run dev
    ```
 
@@ -89,6 +127,11 @@ To test this Mini App in Farcaster:
 3. Toggle on "Developer Mode"
 4. Use the developer tools to preview and test your Mini App
 
+=======
+   npm start
+   ```
+
+>>>>>>> 98e5a8cc8eac86436f395eb3fad162a56e857a5f
 ### Getting a Google Gemini API Key
 1. Visit [Google AI Studio](https://makersuite.google.com/)
 2. Sign in with your Google account
@@ -102,6 +145,7 @@ To test this Mini App in Farcaster:
 - **HTML5 Canvas** - High-performance 2D graphics
 - **Google Gemini AI** - Dynamic level generation
 - **CSS3** - Retro styling and animations
+<<<<<<< HEAD
 - **Farcaster Mini App SDK** - Native Farcaster integration
 
 ### Mini App Architecture
@@ -109,6 +153,8 @@ To test this Mini App in Farcaster:
 - **Embed Metadata**: Proper OpenGraph and Mini App embed tags
 - **Responsive Design**: Optimized for Farcaster client viewports
 - **Authentication Ready**: Prepared for Farcaster Quick Auth integration
+=======
+>>>>>>> 98e5a8cc8eac86436f395eb3fad162a56e857a5f
 
 ### Game Configuration
 - **Canvas Size**: 800x600 pixels
@@ -190,6 +236,7 @@ src/
 - Try refreshing the page
 - Check if browser supports touch events
 
+<<<<<<< HEAD
 ## Mini App Deployment
 
 ### Building for Production
@@ -211,6 +258,8 @@ Make sure to create and upload these assets to your deployment:
 - `hero.png` - Hero image for the Mini App directory
 - `screenshot1.png`, `screenshot2.png`, `screenshot3.png` - Game screenshots
 
+=======
+>>>>>>> 98e5a8cc8eac86436f395eb3fad162a56e857a5f
 ## Contributing
 
 Feel free to contribute improvements:
@@ -232,4 +281,8 @@ This project is licensed under the Apache License 2.0 - see the LICENSE file for
 
 ---
 
+<<<<<<< HEAD
 *Get ready to break some frames! 🕹️*
+=======
+*Get ready to break some frames! 🕹️*
+>>>>>>> 98e5a8cc8eac86436f395eb3fad162a56e857a5f
