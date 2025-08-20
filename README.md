@@ -1,6 +1,5 @@
 # Frame Breaker '85
 
-<<<<<<< HEAD
 An AI-powered brick breaker game with retro aesthetics and modern features, built as a Farcaster Mini App. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.
 
 ## 🚀 Farcaster Mini App
