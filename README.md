@@ -12,8 +12,6 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 - **Social Sharing**: Easy sharing of scores and achievements
 - **Responsive Design**: Optimized for mobile and desktop Farcaster clients
 
-![Game Screenshot](https://via.placeholder.com/800x600/0d0221/00ffff?text=Frame+Breaker+'85)
-
 ## Features
 
 ### 🤖 AI-Generated Levels
