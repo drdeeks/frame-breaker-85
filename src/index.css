@@ -350,3 +350,135 @@ canvas {
 @media (max-width: 850px) and (orientation: portrait) {
   /* No styles needed here for now */
 }
+
+/* --- WALLET & BLOCKCHAIN UI --- */
+
+/* Wallet Status */
+.wallet-status {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid #00ffff;
+}
+
+.wallet-connected {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #70ff00;
+}
+
+.wallet-disconnected {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: #f21170;
+}
+
+.wallet-address {
+  font-family: monospace;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.connect-wallet-btn {
+  background: linear-gradient(45deg, #f21170, #ff00ff);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+}
+
+.connect-wallet-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(242, 17, 112, 0.5);
+}
+
+/* Submit Buttons */
+.submit-blockchain-btn {
+  background: linear-gradient(45deg, #70ff00, #00ffff);
+  color: #0d0221;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.8rem;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.submit-blockchain-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(112, 255, 0, 0.5);
+}
+
+.submit-blockchain-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submit-local-btn {
+  background: linear-gradient(45deg, #f89a1d, #ff00ff);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+}
+
+.submit-local-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(248, 154, 29, 0.5);
+}
+
+/* Error Messages */
+.error-message {
+  background: rgba(242, 17, 112, 0.2);
+  border: 1px solid #f21170;
+  color: #f21170;
+  padding: 0.75rem;
+  border-radius: 5px;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+/* Submission Info */
+.submission-info {
+  background: rgba(112, 255, 0, 0.1);
+  border: 1px solid #70ff00;
+  color: #70ff00;
+  padding: 1rem;
+  border-radius: 5px;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.submission-info p {
+  margin: 0.5rem 0;
+}
+
+/* Blockchain Badge */
+.blockchain-badge {
+  margin-left: 1rem;
+  font-size: 0.8rem;
+}
+
+.blockchain-badge a {
+  color: #00ffff;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.blockchain-badge a:hover {
+  color: #70ff00;
+  text-decoration: underline;
+}

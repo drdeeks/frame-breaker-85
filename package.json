@@ -1,25 +1,43 @@
 {
-  "name": "frame-breaker-85",
+  "name": "frame-breaker",
+  "version": "0.1.0",
   "private": true,
-  "version": "1.0.0",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "hardhat test",
+    "test:coverage": "hardhat coverage",
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js",
+    "deploy:base": "hardhat run scripts/deploy.js --network base",
+    "deploy:baseSepolia": "hardhat run scripts/deploy.js --network baseSepolia",
+    "verify": "hardhat verify"
   },
   "dependencies": {
-    "@farcaster/miniapp-sdk": "^0.1.0",
-    "@google/genai": "^0.7.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@farcaster/miniapp-sdk": "^0.1.9",
+    "@google/genai": "^1.17.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "typescript": "^5.9.2",
+    "viem": "^2.27.2",
+    "wagmi": "^2.16.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
-  },
-  "engines": {
-    "node": ">=22.11.0"
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "chai": "^4.5.0",
+    "dotenv": "^17.2.2",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "hardhat": "^2.26.3",
+    "prettier": "^3.5.3",
+    "solidity-coverage": "^0.8.5",
+    "vite": "^5.3.3"
   }
 }

@@ -6,6 +6,61 @@ import { GoogleGenAI, Type } from '@google/genai';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 
+// --- BASE CHAIN CONFIGURATION ---
+const BASE_CHAIN_ID = 8453; // Base mainnet
+const BASE_RPC_URL = 'https://mainnet.base.org';
+const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // Placeholder - replace with actual contract
+const CONTRACT_ABI = [
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "playerName",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "score",
+        "type": "uint256"
+      }
+    ],
+    "name": "submitScore",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getTopScores",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "playerName",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "score",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct FrameBreaker.Score[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
 // --- GAME CONFIGURATION ---
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
@@ -156,21 +211,48 @@ function App() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [initials, setInitials] = useState('');
   const [loading, setLoading] = useState(false);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [submittingScore, setSubmittingScore] = useState(false);
+  const [scoreSubmissionError, setScoreSubmissionError] = useState('');
 
   // Initialize Farcaster Mini App SDK
   useEffect(() => {
     const initializeSDK = async () => {
       try {
         // Call ready() to hide splash screen and display content
+        // This is CRITICAL - without this, users see infinite loading screen
         await sdk.actions.ready();
+        console.log('Farcaster Mini App SDK initialized successfully');
+        
+        // Check if wallet is available
+        await checkWalletConnection();
       } catch (error) {
         console.error('Failed to initialize Farcaster Mini App SDK:', error);
-        // Continue without SDK if it fails
+        // Continue without SDK if it fails - app will still work in browser
       }
     };
 
+    // Initialize SDK after app is fully loaded and ready to display
     initializeSDK();
   }, []);
+
+  // Check wallet connection
+  const checkWalletConnection = async () => {
+    try {
+      const provider = await sdk.wallet.getEthereumProvider();
+      const accounts = await provider.request({ method: 'eth_accounts' }) as string[];
+      if (accounts && accounts.length > 0) {
+        setWalletConnected(true);
+        setWalletAddress(accounts[0]);
+        console.log('Wallet connected:', accounts[0]);
+      }
+    } catch (error) {
+      console.log('No wallet connected or wallet not available');
+      setWalletConnected(false);
+      setWalletAddress('');
+    }
+  };
 
   // Load leaderboard from localStorage
   useEffect(() => {
@@ -282,15 +364,129 @@ function App() {
     }
   };
 
-  const handleInitialsSubmit = (e) => {
-      e.preventDefault();
-      if (!initials) return;
-      const newEntry = { name: initials.toUpperCase(), score };
+  // Connect wallet
+  const connectWallet = async () => {
+    try {
+      const provider = await sdk.wallet.getEthereumProvider();
+      const accounts = await provider.request({ method: 'eth_requestAccounts' }) as string[];
+      if (accounts && accounts.length > 0) {
+        setWalletConnected(true);
+        setWalletAddress(accounts[0]);
+        console.log('Wallet connected:', accounts[0]);
+      }
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      setScoreSubmissionError('Failed to connect wallet. Please try again.');
+    }
+  };
+
+  // Switch to Base network
+  const switchToBase = async () => {
+    try {
+      const provider = await sdk.wallet.getEthereumProvider();
+      await provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${BASE_CHAIN_ID.toString(16)}` }],
+      });
+      console.log('Switched to Base network');
+    } catch (error) {
+      console.error('Failed to switch to Base network:', error);
+      // Try to add Base network if it doesn't exist
+      try {
+        const provider = await sdk.wallet.getEthereumProvider();
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: `0x${BASE_CHAIN_ID.toString(16)}`,
+            chainName: 'Base',
+            nativeCurrency: {
+              name: 'ETH',
+              symbol: 'ETH',
+              decimals: 18,
+            },
+            rpcUrls: [BASE_RPC_URL],
+            blockExplorerUrls: ['https://basescan.org'],
+          }],
+        });
+      } catch (addError) {
+        console.error('Failed to add Base network:', addError);
+        setScoreSubmissionError('Please add Base network to your wallet manually.');
+      }
+    }
+  };
+
+  // Submit score to blockchain
+  const submitScoreToBlockchain = async (playerName, playerScore) => {
+    try {
+      setSubmittingScore(true);
+      setScoreSubmissionError('');
+
+      // Ensure wallet is connected
+      if (!walletConnected) {
+        await connectWallet();
+        if (!walletConnected) {
+          throw new Error('Wallet connection required');
+        }
+      }
+
+      // Switch to Base network
+      await switchToBase();
+
+      const provider = await sdk.wallet.getEthereumProvider();
+      
+      // Create contract instance
+      const ethers = await import('ethers');
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      // Estimate gas for the transaction
+      const gasEstimate = await contract.submitScore.estimateGas(playerName, playerScore);
+      
+      // Submit the transaction with gas fee
+      const tx = await contract.submitScore(playerName, playerScore, {
+        gasLimit: gasEstimate * 120n / 100n, // Add 20% buffer
+      });
+
+      console.log('Score submission transaction:', tx.hash);
+      
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
+      console.log('Score submitted successfully:', receipt);
+
+      // Update local leaderboard
+      const newEntry = { name: playerName.toUpperCase(), score: playerScore, txHash: tx.hash };
       const newLeaderboard = [...leaderboard, newEntry]
           .sort((a, b) => b.score - a.score)
           .slice(0, 10);
       saveLeaderboard(newLeaderboard);
+      
       setGameState('leaderboard');
+      setSubmittingScore(false);
+      
+    } catch (error) {
+      console.error('Failed to submit score to blockchain:', error);
+      setScoreSubmissionError(`Failed to submit score: ${error.message}`);
+      setSubmittingScore(false);
+    }
+  };
+
+  const handleInitialsSubmit = (e) => {
+      e.preventDefault();
+      if (!initials) return;
+      
+      if (walletConnected) {
+        // Submit to blockchain with gas fee
+        submitScoreToBlockchain(initials, score);
+      } else {
+        // Fallback to local storage
+        const newEntry = { name: initials.toUpperCase(), score };
+        const newLeaderboard = [...leaderboard, newEntry]
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 10);
+        saveLeaderboard(newLeaderboard);
+        setGameState('leaderboard');
+      }
   };
 
   const activatePowerUp = (type) => {
@@ -614,6 +810,25 @@ function App() {
                 <div className="game-ui">
                     <h1>Game Over</h1>
                     <p>Final Score: {score}</p>
+                    
+                    {/* Wallet Connection Status */}
+                    <div className="wallet-status">
+                        {walletConnected ? (
+                            <div className="wallet-connected">
+                                <span>✅ Wallet Connected</span>
+                                <span className="wallet-address">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                            </div>
+                        ) : (
+                            <div className="wallet-disconnected">
+                                <span>🔗 Connect Wallet to submit to Base chain</span>
+                                <button onClick={connectWallet} className="connect-wallet-btn">
+                                    Connect Wallet
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Score Submission Form */}
                     <form onSubmit={handleInitialsSubmit}>
                       <div className="input-group">
                         <input 
@@ -624,9 +839,32 @@ function App() {
                             placeholder="AAA"
                             autoFocus
                         />
-                        <button type="submit">Save Score</button>
+                        <button 
+                            type="submit" 
+                            disabled={submittingScore}
+                            className={walletConnected ? "submit-blockchain-btn" : "submit-local-btn"}
+                        >
+                            {submittingScore ? "Submitting..." : 
+                             walletConnected ? "Submit to Base Chain (Gas Fee)" : "Save Locally"}
+                        </button>
                       </div>
                     </form>
+
+                    {/* Error Messages */}
+                    {scoreSubmissionError && (
+                        <div className="error-message">
+                            {scoreSubmissionError}
+                        </div>
+                    )}
+
+                    {/* Submission Info */}
+                    {walletConnected && (
+                        <div className="submission-info">
+                            <p>💡 Submitting to Base chain requires a small gas fee (~$0.01-0.05)</p>
+                            <p>Your score will be permanently recorded on the blockchain!</p>
+                        </div>
+                    )}
+
                     <button onClick={startGame}>Play Again</button>
                     <button onClick={() => setGameState('leaderboard')}>Leaderboard</button>
                 </div>
@@ -640,6 +878,17 @@ function App() {
                             <li key={index}>
                                 <span className="leaderboard-name">{entry.name}</span>
                                 <span className="leaderboard-score">{entry.score}</span>
+                                {entry.txHash && (
+                                    <span className="blockchain-badge">
+                                        🔗 <a 
+                                            href={`https://basescan.org/tx/${entry.txHash}`} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                        >
+                                            View on Base
+                                        </a>
+                                    </span>
+                                )}
                             </li>
                         )) : <p>No scores yet. Be the first!</p>}
                     </ol>
