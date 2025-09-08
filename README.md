@@ -15,8 +15,6 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 - **Blockchain Integration**: Submit scores to Base chain with gas fees
 - **Wallet Support**: Connect Ethereum wallets for blockchain transactions
 
-![Game Screenshot](https://via.placeholder.com/800x600/0d0221/00ffff?text=Frame+Breaker+'85)
-
 ## Features
 
 ### 🤖 AI-Generated Levels
@@ -71,8 +69,12 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 ## Installation & Setup
 
 ### Prerequisites
+<<<<<<< HEAD
 
 - **Node.js 22.11.0 or higher** (LTS version recommended) - Required for Farcaster Mini Apps
+=======
+- Node.js (v22.11.0 or higher) - Required for Farcaster Mini Apps
+>>>>>>> 86cc80689a7fafafa952500af1ed17941b8f553d
 - Google Gemini AI API key
 - Farcaster account with Developer Mode enabled
 
@@ -139,9 +141,12 @@ To test this Mini App in Farcaster:
 - **Discovery File**: `.well-known/farcaster.json` for Mini App discovery
 - **Responsive Design**: Optimized for Farcaster client viewports
 - **Authentication Ready**: Prepared for Farcaster Quick Auth integration
+<<<<<<< HEAD
 - **Notification Support**: Ready for push notifications
 - **Wallet Integration**: Ethereum wallet connection for Base chain transactions
 - **Smart Contract**: Solidity contract for blockchain score submissions
+=======
+>>>>>>> 86cc80689a7fafafa952500af1ed17941b8f553d
 
 ### Game Configuration
 
@@ -205,6 +210,27 @@ src/
 - **State Management**: React hooks for game state
 - **Collision System**: Efficient rectangle-circle collision detection
 
+## Mini App Deployment
+
+### Building for Production
+```bash
+npm run build
+```
+
+### Publishing to Farcaster
+1. Deploy your built application to a public URL (e.g., Vercel, Netlify)
+2. Update the URLs in `farcaster-miniapp.json` to match your deployment
+3. Use the Farcaster Developer Tools to submit your Mini App for review
+4. Once approved, your Mini App will be available in the Farcaster Mini App directory
+
+### Required Assets
+Make sure to create and upload these assets to your deployment:
+- `icon.png` - App icon (512x512px)
+- `og-image.png` - Open Graph image (1200x630px)
+- `splash.png` - Splash screen (1200x630px)
+- `hero.png` - Hero image for the Mini App directory
+- `screenshot1.png`, `screenshot2.png`, `screenshot3.png` - Game screenshots
+
 ## Troubleshooting
 
 ### Common Issues
@@ -239,6 +265,7 @@ src/
 - Try refreshing the page
 - Check if browser supports touch events
 
+<<<<<<< HEAD
 ## Mini App Deployment
 
 ### Building for Production
@@ -279,6 +306,8 @@ Make sure to create and upload these assets to your deployment:
 - `hero.png` - Hero image for the Mini App directory
 - `screenshot1.png`, `screenshot2.png`, `screenshot3.png` - Game screenshots
 
+=======
+>>>>>>> 86cc80689a7fafafa952500af1ed17941b8f553d
 ## Contributing
 
 Feel free to contribute improvements:
