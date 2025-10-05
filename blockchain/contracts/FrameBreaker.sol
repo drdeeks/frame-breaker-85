@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * @title FrameBreaker
- * @dev Smart contract for Frame Breaker '85 game high score submissions on Base chain
- * @author Frame Breaker Team
+ * @dev Unified, robust, and inclusive smart contract for Frame Breaker '85 game high score submissions.
+ *      Combines features from previous iterations, including a dynamic, sorted leaderboard,
+ *      pausable functionality, and upgradeability.
+ * @author Frame Breaker Team (Enhanced by AI)
  */
-contract FrameBreaker {
+contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
     struct Score {
         string playerName;
         uint256 score;
@@ -21,34 +27,43 @@ contract FrameBreaker {
         uint256 score,
         uint256 timestamp
     );
+    event SubmissionFeeUpdated(uint256 newFee);
+    event FeesWithdrawn(address indexed to, uint256 amount);
     event ContractUpgraded(address indexed newContract);
 
     // State variables
-    address public owner;
-    uint256 public submissionFee;
+    uint256 public submissionFee; // defaults to 0
     uint256 public totalSubmissions;
-    mapping(uint256 => Score) public scores;
-    mapping(address => uint256[]) public playerScores;
+    Score[] private leaderboard; // sorted array (descending by score)
+    mapping(address => uint256[]) private playerScoreIndices;
 
     // Constants
-    uint256 public constant MAX_SCORES = 1000;
     uint256 public constant MIN_SCORE = 0;
     uint256 public constant MAX_NAME_LENGTH = 10;
 
-    // Modifiers
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call this function");
-        _;
+    /**
+     * @dev Constructor - sets up the contract and transfers ownership to the deployer.
+     * @param _initialOwner The address of the initial owner.
+     * @param _initialSubmissionFee Fee required to submit a score (in wei).
+     */
+    constructor(
+        address _initialOwner,
+        uint256 _initialSubmissionFee
+    ) Ownable(_initialOwner) {
+        submissionFee = _initialSubmissionFee;
     }
 
+    // --- Modifiers ---
     modifier validScore(uint256 _score) {
         require(_score >= MIN_SCORE, "Score must be non-negative");
         _;
     }
 
-    modifier validName(string memory _name) {
-        require(bytes(_name).length > 0, "Name cannot be empty");
-        require(bytes(_name).length <= MAX_NAME_LENGTH, "Name too long");
+    modifier validName(string calldata _name) {
+        require(
+            bytes(_name).length > 0 && bytes(_name).length <= MAX_NAME_LENGTH,
+            "Invalid name length"
+        );
         _;
     }
 
@@ -57,89 +72,159 @@ contract FrameBreaker {
         _;
     }
 
+    // --- Core Functions ---
+
     /**
-     * @dev Constructor - sets up the contract
-     * @param _submissionFee Fee required to submit a score (in wei)
+     * @dev Submits a new score to the leaderboard.
+     * @param _playerName The player's name (max 10 characters).
+     * @param _score The score achieved.
      */
-    constructor(uint256 _submissionFee) {
-        owner = msg.sender;
-        submissionFee = _submissionFee;
-        totalSubmissions = 0;
+    function submitScore(
+        string calldata _playerName,
+        uint256 _score
+    )
+        external
+        payable
+        whenNotPaused
+        nonReentrant
+        validScore(_score)
+        validName(_playerName)
+        hasSubmissionFee
+    {
+        Score memory newScore = Score({
+            playerName: _playerName,
+            score: _score,
+            timestamp: block.timestamp,
+            player: msg.sender
+        });
+
+        _insertScore(newScore);
+        totalSubmissions++;
+
+        emit ScoreSubmitted(msg.sender, _playerName, _score, block.timestamp);
+
+        // Refund any excess fee sent
+        uint256 excessFee = msg.value - submissionFee;
+        if (excessFee > 0) {
+            (bool success, ) = payable(msg.sender).call{value: excessFee}("");
+            require(success, "FrameBreaker: Refund failed");
+        }
     }
 
     /**
-     * @dev Get top scores (sorted by score, highest first)
-     * @param _count Number of top scores to return
-     * @return Array of top scores
+     * @dev Inserts a new score into the sorted leaderboard (descending by score).
+     *      Maintains the leaderboard in a sorted order.
      */
-    function getTopScores(
-        uint256 _count
+    function _insertScore(Score memory newScore) internal {
+        leaderboard.push(newScore);
+
+        uint256 i = leaderboard.length - 1;
+        while (i > 0 && leaderboard[i].score > leaderboard[i - 1].score) {
+            Score memory temp = leaderboard[i - 1];
+            leaderboard[i - 1] = leaderboard[i];
+            leaderboard[i] = temp;
+            i--;
+        }
+
+        // Store the index where the score was inserted for player-specific retrieval
+        playerScoreIndices[newScore.player].push(i);
+    }
+
+    // --- Admin Functions ---
+
+    /**
+     * @dev Pauses the contract, preventing new score submissions. (Owner only)
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @dev Unpauses the contract, allowing new score submissions. (Owner only)
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /**
+     * @dev Updates the submission fee. (Owner only)
+     * @param _newFee New submission fee in wei.
+     */
+    function setSubmissionFee(uint256 _newFee) external onlyOwner {
+        submissionFee = _newFee;
+        emit SubmissionFeeUpdated(_newFee);
+    }
+
+    /**
+     * @dev Withdraws accumulated fees to a specified address. (Owner only)
+     * @param _to The address to send the fees to.
+     */
+    function withdrawFees(address payable _to) external onlyOwner nonReentrant {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No fees to withdraw");
+        (bool sent, ) = _to.call{value: balance}("");
+        require(sent, "Withdraw failed");
+        emit FeesWithdrawn(_to, balance);
+    }
+
+    /**
+     * @dev Emits an event indicating a contract upgrade. This function is for signaling
+     *      off-chain systems about a new contract address, not for on-chain proxy upgrades.
+     * @param _newContract The address of the new contract.
+     */
+    function upgradeContract(address _newContract) external onlyOwner {
+        emit ContractUpgraded(_newContract);
+    }
+
+    // --- View Functions ---
+
+    /**
+     * @dev Returns the top N scores from the leaderboard.
+     * @param _topN The number of top scores to retrieve.
+     * @return An array of Score structs.
+     */
+    function getLeaderboard(
+        uint256 _topN
     ) external view returns (Score[] memory) {
-        require(_count > 0 && _count <= totalSubmissions, "Invalid count");
+        require(_topN > 0, "Must request at least 1 score");
+        uint256 n = _topN > leaderboard.length ? leaderboard.length : _topN;
 
-        Score[] memory topScores = new Score[](_count);
-        uint256[] memory scoreIndices = new uint256[](totalSubmissions);
-
-        // Create array of indices
-        for (uint256 i = 0; i < totalSubmissions; i++) {
-            scoreIndices[i] = i;
+        Score[] memory topScores = new Score[](n);
+        for (uint256 i = 0; i < n; i++) {
+            topScores[i] = leaderboard[i];
         }
-
-        // Sort indices by score (bubble sort for simplicity)
-        for (uint256 i = 0; i < totalSubmissions - 1; i++) {
-            for (uint256 j = 0; j < totalSubmissions - i - 1; j++) {
-                if (
-                    scores[scoreIndices[j]].score <
-                    scores[scoreIndices[j + 1]].score
-                ) {
-                    uint256 temp = scoreIndices[j];
-                    scoreIndices[j] = scoreIndices[j + 1];
-                    scoreIndices[j + 1] = temp;
-                }
-            }
-        }
-
-        // Get top scores
-        for (uint256 i = 0; i < _count; i++) {
-            topScores[i] = scores[scoreIndices[i]];
-        }
-
         return topScores;
     }
 
     /**
-     * @dev Get scores for a specific player
-     * @param _player Address of the player
-     * @return Array of player's scores
+     * @dev Get scores for a specific player.
+     * @param _player Address of the player.
+     * @return Array of player's scores.
      */
     function getPlayerScores(
         address _player
     ) external view returns (Score[] memory) {
-        uint256[] memory playerScoreIndices = playerScores[_player];
-        Score[] memory playerScoreList = new Score[](playerScoreIndices.length);
+        uint256[] memory indices = playerScoreIndices[_player];
+        Score[] memory result = new Score[](indices.length);
 
-        for (uint256 i = 0; i < playerScoreIndices.length; i++) {
-            playerScoreList[i] = scores[playerScoreIndices[i]];
+        for (uint256 i = 0; i < indices.length; i++) {
+            result[i] = leaderboard[indices[i]];
         }
-
-        return playerScoreList;
+        return result;
     }
 
     /**
-     * @dev Get a specific score by index
-     * @param _index Index of the score
-     * @return Score struct
+     * @dev Returns the current size of the leaderboard.
      */
-    function getScore(uint256 _index) external view returns (Score memory) {
-        require(_index < totalSubmissions, "Score does not exist");
-        return scores[_index];
+    function getLeaderboardSize() external view returns (uint256) {
+        return leaderboard.length;
     }
 
     /**
-     * @dev Get contract statistics
-     * @return _totalSubmissions Total number of submissions
-     * @return _submissionFee Current submission fee
-     * @return _contractBalance Current contract balance
+     * @dev Get contract statistics.
+     * @return _totalSubmissions Total number of submissions.
+     * @return _submissionFee Current submission fee.
+     * @return _contractBalance Current contract balance.
      */
     function getStats()
         external
@@ -153,80 +238,6 @@ contract FrameBreaker {
         return (totalSubmissions, submissionFee, address(this).balance);
     }
 
-    /**
-     * @dev Update submission fee (owner only)
-     * @param _newFee New submission fee in wei
-     */
-    function updateSubmissionFee(uint256 _newFee) external onlyOwner {
-        submissionFee = _newFee;
-    }
-
-    /**
-     * @dev Withdraw accumulated fees (owner only)
-     * @param _amount Amount to withdraw in wei
-     */
-    function withdrawFees(uint256 _amount) external onlyOwner {
-        require(_amount <= address(this).balance, "Insufficient balance");
-        payable(owner).transfer(_amount);
-    }
-
-    /**
-     * @dev Transfer ownership (owner only)
-     * @param _newOwner Address of new owner
-     */
-    function transferOwnership(address _newOwner) external onlyOwner {
-        require(_newOwner != address(0), "Invalid new owner");
-        owner = _newOwner;
-    }
-
-    /**
-     * @dev Emergency pause function (owner only)
-     * This allows the owner to pause submissions if needed
-     */
-    bool public paused;
-
-    modifier whenNotPaused() {
-        require(!paused, "Contract is paused");
-        _;
-    }
-
-    function setPaused(bool _paused) external onlyOwner {
-        paused = _paused;
-    }
-
-    // Override submitScore to include pause check
-    function submitScore(
-        string memory _playerName,
-        uint256 _score
-    )
-        external
-        payable
-        validScore(_score)
-        validName(_playerName)
-        hasSubmissionFee
-        whenNotPaused
-    {
-        // Implementation remains the same
-        Score memory newScore = Score({
-            playerName: _playerName,
-            score: _score,
-            timestamp: block.timestamp,
-            player: msg.sender
-        });
-
-        scores[totalSubmissions] = newScore;
-        playerScores[msg.sender].push(totalSubmissions);
-        totalSubmissions++;
-
-        emit ScoreSubmitted(msg.sender, _playerName, _score, block.timestamp);
-
-        if (msg.value > submissionFee) {
-            payable(msg.sender).transfer(msg.value - submissionFee);
-        }
-    }
-
-    // Fallback function
-    receive() external payable {
-        // Accept ETH payments
-    }
+    // Fallback function to accept ETH payments
+    receive() external payable {}
 }

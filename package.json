@@ -6,13 +6,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "hardhat test",
-    "test:coverage": "hardhat coverage",
-    "compile": "hardhat compile",
-    "deploy": "hardhat run scripts/deploy.js",
-    "deploy:base": "hardhat run scripts/deploy.js --network base",
-    "deploy:baseSepolia": "hardhat run scripts/deploy.js --network baseSepolia",
-    "verify": "hardhat verify"
+    "test": "forge test",
+    "test:coverage": "forge coverage",
+    "compile": "forge build",
+    "deploy:base": "forge script blockchain/scripts/DeployBase.s.sol --rpc-url base --broadcast --verify -vvvv",
+    "deploy:baseSepolia": "forge script blockchain/scripts/DeployBase.s.sol --rpc-url baseSepolia --broadcast --verify -vvvv",
+    "deploy:monad": "forge script blockchain/scripts/DeployMonad.s.sol --rpc-url monad --broadcast --verify -vvvv",
+    "deploy:monadTestnet": "forge script blockchain/scripts/DeployMonad.s.sol --rpc-url monadTestnet --broadcast --verify -vvvv",
+    "verify": "forge verify-contract",
+    "keystore:create": "python keystore_import.py"
   },
   "dependencies": {
     "@farcaster/miniapp-sdk": "^0.1.9",
@@ -21,23 +23,38 @@
     "@types/react-dom": "^19.1.9",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "typescript": "^5.9.2",
     "viem": "^2.27.2",
     "wagmi": "^2.16.0"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@openzeppelin/contracts": "^4.9.6",
+    "@types/node": "^20.19.14",
     "@vitejs/plugin-react": "^4.3.1",
-    "chai": "^4.5.0",
     "dotenv": "^17.2.2",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.3",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.2.0",
-    "hardhat": "^2.26.3",
     "prettier": "^3.5.3",
-    "solidity-coverage": "^0.8.5",
+    "typescript": "^5.8.3",
     "vite": "^5.3.3"
-  }
+  },
+  "description": "An AI-powered brick breaker game with retro aesthetics and modern features, built as a Farcaster Mini App. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.",
+  "main": "eslint.config.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drdeeks/frame-breaker-85.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/drdeeks/frame-breaker-85/issues"
+  },
+  "homepage": "https://github.com/drdeeks/frame-breaker-85#readme"
 }
