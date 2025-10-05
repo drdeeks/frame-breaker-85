@@ -17,16 +17,8 @@ const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // IMPORT
 const CONTRACT_ABI = [
   {
     "inputs": [
-      {
-        "internalType": "string",
-        "name": "playerName",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "score",
-        "type": "uint256"
-      }
+      { "internalType": "string", "name": "playerName", "type": "string" },
+      { "internalType": "uint256", "name": "score", "type": "uint256" }
     ],
     "name": "submitScore",
     "outputs": [],
@@ -35,36 +27,16 @@ const CONTRACT_ABI = [
   },
   {
     "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_topN",
-        "type": "uint256"
-      }
+      { "internalType": "uint256", "name": "_topN", "type": "uint256" }
     ],
     "name": "getLeaderboard",
     "outputs": [
       {
         "components": [
-          {
-            "internalType": "string",
-            "name": "playerName",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "score",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "timestamp",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "player",
-            "type": "address"
-          }
+          { "internalType": "string", "name": "playerName", "type": "string" },
+          { "internalType": "uint256", "name": "score", "type": "uint256" },
+          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+          { "internalType": "address", "name": "player", "type": "address" }
         ],
         "internalType": "struct FrameBreaker.Score[]",
         "name": "",
@@ -80,9 +52,9 @@ const CONTRACT_ABI = [
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 const PADDLE_WIDTH_DEFAULT = 120;
-const PADDLE_HEIGHT = 20;
+const PADDLE_HEIGHT = 22; // Slightly thicker paddle
 const PADDLE_Y = CANVAS_HEIGHT - 40;
-const BALL_RADIUS = 10;
+const BALL_RADIUS = 11; // Slightly larger ball
 const BRICK_COLS = 18;
 const BRICK_ROWS = 10;
 const BRICK_HEIGHT = 18;
@@ -102,8 +74,15 @@ const COLORS = {
   TEXT: '#ffffff',
   BORDER: '#00ffff',
   SHADOW: '#f21170',
-  POWER_UP: '#00ffff',
-  POWER_DOWN: '#f21170',
+  POWER_UP: {
+    'sticky': '#f89a1d',      // Orange for Sticky
+    'paint': '#ff00ff',       // Magenta for Paint
+    'invincible': '#70ff00',  // Green for Invincible
+  },
+  POWER_DOWN: {
+    'add-bricks': '#3d25b5',  // Purple for Add Bricks
+    'shrink-paddle': '#f21170' // Red for Shrink
+  },
   BRICK_DAMAGED: '#999999',
 };
 
@@ -226,6 +205,7 @@ function App() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [initials, setInitials] = useState('');
   const [loading, setLoading] = useState(false);
+  const [screenShake, setScreenShake] = useState({ endTime: 0, magnitude: 0 });
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [submittingScore, setSubmittingScore] = useState(false);
@@ -382,25 +362,16 @@ function App() {
   };
 
   const handleClick = () => {
-    if (gameState === 'playing') {
-      if (ball.attached) {
-        // Launch ball
-        setBall(prev => ({
-          ...prev,
-          attached: false,
-          // Ensure the ball always launches upwards
-          dy: -Math.abs(prev.dy) || -4,
-        }));
-        if (activePowerUps.sticky > 0) {
-          setActivePowerUps(prev => ({ ...prev, sticky: prev.sticky - 1 }));
-        }
-      } else {
-        // Ball is in motion, so pause the game
-        setGameState('paused');
+    if (gameState === 'playing' && ball.attached) {
+      setBall(prev => ({
+        ...prev,
+        attached: false,
+        // Ensure the ball always launches upwards
+        dy: -Math.abs(prev.dy) || -4,
+      }));
+      if (activePowerUps.sticky > 0) {
+        setActivePowerUps(prev => ({ ...prev, sticky: prev.sticky - 1 }));
       }
-    } else if (gameState === 'paused') {
-      // If paused, resume the game by clicking anywhere
-      setGameState('playing');
     }
   };
 
@@ -614,47 +585,82 @@ function App() {
     let animationFrameId;
 
     const draw = () => {
+      const now = Date.now();
+      let shakeX = 0;
+      let shakeY = 0;
+      if (now < screenShake.endTime) {
+        shakeX = (Math.random() - 0.5) * screenShake.magnitude;
+        shakeY = (Math.random() - 0.5) * screenShake.magnitude;
+      }
+
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+
       // Clear canvas
       ctx.fillStyle = '#0d0221';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Draw Paddle
-      ctx.fillStyle = COLORS.PADDLE;
-      ctx.shadowColor = COLORS.SHADOW;
-      ctx.shadowBlur = 15;
+      // Draw Paddle with 3D effect
+      const paddleGradient = ctx.createLinearGradient(paddleX, PADDLE_Y, paddleX, PADDLE_Y + PADDLE_HEIGHT);
+      paddleGradient.addColorStop(0, '#00ffff');
+      paddleGradient.addColorStop(1, '#00b8b8');
+      ctx.fillStyle = paddleGradient;
+      ctx.shadowColor = COLORS.PADDLE;
+      ctx.shadowBlur = 20;
       ctx.fillRect(paddleX, PADDLE_Y, paddleWidth, PADDLE_HEIGHT);
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(paddleX, PADDLE_Y, paddleWidth, PADDLE_HEIGHT);
+      ctx.shadowBlur = 0;
 
-      // Draw Bricks
+      // Draw Bricks with a border for depth
       bricks.forEach(brick => {
         if (brick.visible) {
           ctx.fillStyle = brick.color;
           ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
+          ctx.strokeStyle = '#0d0221'; // Border color matches background
+          ctx.lineWidth = 2;
+          ctx.strokeRect(brick.x, brick.y, brick.w, brick.h);
         }
       });
 
-      // Draw Ball
+      // Draw Ball with a glow
+      ctx.save();
       ctx.beginPath();
       ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
       ctx.fillStyle = COLORS.BALL;
+      ctx.shadowColor = COLORS.BALL;
+      ctx.shadowBlur = 25;
       ctx.fill();
       ctx.closePath();
+      ctx.restore();
 
-      ctx.shadowBlur = 0; // Reset shadow for text
-
-      // Draw Power-ups
-      ctx.font = "20px 'Press Start 2P'";
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      // Draw Power-ups with distinct shapes and colors
       powerUps.forEach(p => {
         const isPowerUp = Object.values(POWER_UP_TYPES).includes(p.type);
-        ctx.fillStyle = isPowerUp ? COLORS.POWER_UP : COLORS.POWER_DOWN;
+        const color = isPowerUp ? COLORS.POWER_UP[p.type] : COLORS.POWER_DOWN[p.type];
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, POWER_UP_SIZE, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.closePath();
+        ctx.restore();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = "bold 18px 'Press Start 2P'";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         let text = '';
         if (p.type === POWER_UP_TYPES.STICKY) text = 'S';
         if (p.type === POWER_UP_TYPES.PAINT) text = 'P';
         if (p.type === POWER_UP_TYPES.INVINCIBLE) text = 'I';
         if (p.type === POWER_DOWN_TYPES.ADD_BRICKS) text = '+';
         if (p.type === POWER_DOWN_TYPES.SHRINK_PADDLE) text = '-';
-        ctx.fillText(text, p.x, p.y);
+        ctx.fillText(text, p.x, p.y + 1); // +1 for better vertical centering
       });
 
       // Draw HUD
@@ -678,6 +684,8 @@ function App() {
       // Reset canvas context state for other potential draws
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
+
+      ctx.restore();
     };
 
     const update = () => {
@@ -730,8 +738,10 @@ function App() {
             newBall.attached = true;
           } else {
             newBall.dy = -newBall.dy;
-            let deltaX = newBall.x - (paddleX + paddleWidth / 2);
-            newBall.dx = deltaX * 0.2;
+            // More predictable angle based on hit position
+            const MAX_BALL_DX = 6;
+            let hitPos = (newBall.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2);
+            newBall.dx = hitPos * MAX_BALL_DX;
           }
         }
 
@@ -747,6 +757,8 @@ function App() {
               if (brick.hp <= 0) {
                 brick.visible = false;
                 newScore += 10;
+                // Add a screen shake effect for more impact
+                setScreenShake({ endTime: Date.now() + 100, magnitude: 5 });
                 if (brick.powerUpType) {
                   setPowerUps(prev => [...prev, { x: brick.x + brick.w / 2, y: brick.y + brick.h / 2, type: brick.powerUpType }]);
                 }
@@ -805,9 +817,7 @@ function App() {
   }, [gameState, paddleX, paddleWidth, ball, bricks, score, lives, level, startNewLevel, powerUps, activePowerUps]);
 
   const togglePause = (e) => {
-    // Stop propagation to prevent the game wrapper's click handler from firing
     if (e) e.stopPropagation();
-
     if (gameState === 'playing') {
       setGameState('paused');
     } else if (gameState === 'paused') {
@@ -859,7 +869,6 @@ function App() {
         return (
           <div className="game-ui paused">
             <h2>Paused</h2>
-            {/* Stop propagation on buttons to prevent resuming game when a menu button is clicked */}
             <button onClick={(e) => { e.stopPropagation(); setGameState('playing'); }}>Resume</button>
             <button onClick={(e) => { e.stopPropagation(); startGame(); }}>Restart Game</button>
             <button onClick={(e) => { e.stopPropagation(); setGameState('start'); }}>Main Menu</button>
@@ -897,26 +906,29 @@ function App() {
             </div>
 
             {/* Score Submission Form */}
-            <form onSubmit={handleInitialsSubmit}>
-              <div className="input-group">
-                <input
-                  type="text"
-                  value={initials}
-                  onChange={(e) => setInitials(e.target.value.slice(0, 3))}
-                  maxLength={3}
-                  placeholder="AAA"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={submittingScore}
-                  className={wagmiIsConnected ? "submit-blockchain-btn" : "submit-local-btn"}
-                >
-                  {submittingScore ? "Submitting..." :
-                    wagmiIsConnected ? `Submit to ${wagmiChain?.name || 'Blockchain'} (Gas Fee)` : "Save Locally"}
-                </button>
-              </div>
-            </form>
+            <div className="score-submission-form">
+              <p className="form-title">Enter Your Initials</p>
+              <form onSubmit={handleInitialsSubmit}>
+                <div className="input-group">
+                  <input
+                    type="text"
+                    value={initials}
+                    onChange={(e) => setInitials(e.target.value.toUpperCase().slice(0, 3))}
+                    maxLength={3}
+                    placeholder="AAA"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    disabled={submittingScore}
+                    className={wagmiIsConnected ? "submit-blockchain-btn" : "submit-local-btn"}
+                  >
+                    {submittingScore ? "Submitting..." :
+                      wagmiIsConnected ? `Submit to ${wagmiChain?.name || 'Blockchain'} (Gas Fee)` : "Save Locally"}
+                  </button>
+                </div>
+              </form>
+            </div>
 
             {/* Error Messages */}
             {scoreSubmissionError && (
