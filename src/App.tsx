@@ -13,7 +13,7 @@ import { base, baseSepolia } from 'wagmi/chains'; // Import chains used in main.
 // --- BASE CHAIN CONFIGURATION ---
 const BASE_CHAIN_ID = 8453; // Base mainnet
 const BASE_RPC_URL = 'https://mainnet.base.org';
-const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // Placeholder - replace with actual contract
+const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // IMPORTANT: Placeholder - replace with your deployed contract address
 const CONTRACT_ABI = [
   {
     "inputs": [
@@ -34,8 +34,14 @@ const CONTRACT_ABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getTopScores",
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_topN",
+        "type": "uint256"
+      }
+    ],
+    "name": "getLeaderboard",
     "outputs": [
       {
         "components": [
@@ -53,6 +59,11 @@ const CONTRACT_ABI = [
             "internalType": "uint256",
             "name": "timestamp",
             "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "player",
+            "type": "address"
           }
         ],
         "internalType": "struct FrameBreaker.Score[]",
@@ -371,16 +382,25 @@ function App() {
   };
 
   const handleClick = () => {
-    if (gameState === 'playing' && ball.attached) {
-      setBall(prev => ({
-        ...prev,
-        attached: false,
-        // Ensure the ball always launches upwards
-        dy: -Math.abs(prev.dy) || -4,
-      }));
-      if (activePowerUps.sticky > 0) {
-        setActivePowerUps(prev => ({ ...prev, sticky: prev.sticky - 1 }));
+    if (gameState === 'playing') {
+      if (ball.attached) {
+        // Launch ball
+        setBall(prev => ({
+          ...prev,
+          attached: false,
+          // Ensure the ball always launches upwards
+          dy: -Math.abs(prev.dy) || -4,
+        }));
+        if (activePowerUps.sticky > 0) {
+          setActivePowerUps(prev => ({ ...prev, sticky: prev.sticky - 1 }));
+        }
+      } else {
+        // Ball is in motion, so pause the game
+        setGameState('paused');
       }
+    } else if (gameState === 'paused') {
+      // If paused, resume the game by clicking anywhere
+      setGameState('playing');
     }
   };
 
@@ -784,7 +804,10 @@ function App() {
     };
   }, [gameState, paddleX, paddleWidth, ball, bricks, score, lives, level, startNewLevel, powerUps, activePowerUps]);
 
-  const togglePause = () => {
+  const togglePause = (e) => {
+    // Stop propagation to prevent the game wrapper's click handler from firing
+    if (e) e.stopPropagation();
+
     if (gameState === 'playing') {
       setGameState('paused');
     } else if (gameState === 'paused') {
@@ -836,9 +859,10 @@ function App() {
         return (
           <div className="game-ui paused">
             <h2>Paused</h2>
-            <button onClick={() => setGameState('playing')}>Resume</button>
-            <button onClick={startGame}>Restart Game</button>
-            <button onClick={() => setGameState('start')}>Main Menu</button>
+            {/* Stop propagation on buttons to prevent resuming game when a menu button is clicked */}
+            <button onClick={(e) => { e.stopPropagation(); setGameState('playing'); }}>Resume</button>
+            <button onClick={(e) => { e.stopPropagation(); startGame(); }}>Restart Game</button>
+            <button onClick={(e) => { e.stopPropagation(); setGameState('start'); }}>Main Menu</button>
           </div>
         );
       case 'level-complete':
