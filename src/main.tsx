@@ -5,11 +5,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// --- Start of proposed changes for Wagmi and multi-chain support ---
-import { WagmiConfig, createConfig, configureChains } from 'wagmi';
-import { publicProvider } from 'wagmi/providers/public';
-import { base, baseSepolia } from 'wagmi/chains'; // Import Basechain and Base Sepolia (for example)
+// --- Wagmi and multi-chain support ---
+import { WagmiConfig, createConfig, http } from 'wagmi';
+import { base, baseSepolia } from 'wagmi/chains';
 
+// Define custom chain for Monad Testnet
 const monadTestnet = {
   id: 10143,
   name: 'Monad Testnet',
@@ -24,32 +24,26 @@ const monadTestnet = {
     public: { http: ['https://testnet-rpc.monad.xyz'] },
   },
   blockExplorers: {
-    default: { name: 'Monadscan', url: 'https://testnet.monadscan.xyz' }, // Placeholder URL
+    default: { name: 'Monadscan', url: 'https://testnet.monadscan.xyz' },
   },
   testnet: true,
 };
 
-
-// Configure chains and providers
-const { chains, publicClient, webSocketPublicClient } = configureChains(
-  [base, baseSepolia, monadTestnet],
-  [publicProvider()]
-);
-
-// Create wagmi config
+// Create wagmi config with the http transport
 const config = createConfig({
-  autoConnect: true,
-  publicClient,
-  webSocketPublicClient,
+  chains: [base, baseSepolia, monadTestnet],
+  transports: {
+    [base.id]: http(),
+    [baseSepolia.id]: http(),
+    [monadTestnet.id]: http(),
+  },
+  ssr: true, // Enable SSR for Farcaster Mini App compatibility
 });
-// --- End of proposed changes ---
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* --- Proposed change: Wrap App with WagmiConfig --- */}
     <WagmiConfig config={config}>
       <App />
     </WagmiConfig>
-    {/* --- End of proposed change --- */}
   </React.StrictMode>,
 );
