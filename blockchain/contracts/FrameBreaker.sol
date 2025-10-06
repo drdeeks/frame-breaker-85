@@ -35,11 +35,11 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
     uint256 public submissionFee; // defaults to 0
     uint256 public totalSubmissions;
     Score[] private leaderboard; // sorted array (descending by score)
-    mapping(address => uint256[]) private playerScoreIndices;
 
     // Constants
     uint256 public constant MIN_SCORE = 0;
     uint256 public constant MAX_NAME_LENGTH = 10;
+    uint256 public constant MAX_LEADERBOARD_SIZE = 100; // Cap leaderboard size
 
     /**
      * @dev Constructor - sets up the contract and transfers ownership to the deployer.
@@ -112,22 +112,33 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @dev Inserts a new score into the sorted leaderboard (descending by score).
-     *      Maintains the leaderboard in a sorted order.
+     * @dev Inserts a score if it's high enough for the leaderboard.
+     *      If the leaderboard is full, it replaces the lowest score.
+     *      Maintains a sorted leaderboard (descending by score).
+     *      This approach is significantly more gas-efficient for a fixed-size leaderboard.
      */
     function _insertScore(Score memory newScore) internal {
-        leaderboard.push(newScore);
+        // Only proceed if the score is high enough to be on the leaderboard
+        if (
+            leaderboard.length < MAX_LEADERBOARD_SIZE ||
+            newScore.score > leaderboard[leaderboard.length - 1].score
+        ) {
+            if (leaderboard.length < MAX_LEADERBOARD_SIZE) {
+                leaderboard.push(newScore);
+            } else {
+                // Replace the lowest score
+                leaderboard[leaderboard.length - 1] = newScore;
+            }
 
-        uint256 i = leaderboard.length - 1;
-        while (i > 0 && leaderboard[i].score > leaderboard[i - 1].score) {
-            Score memory temp = leaderboard[i - 1];
-            leaderboard[i - 1] = leaderboard[i];
-            leaderboard[i] = temp;
-            i--;
+            // Sort the new score into its correct position (bubble-up)
+            uint256 i = leaderboard.length - 1;
+            while (i > 0 && leaderboard[i].score > leaderboard[i - 1].score) {
+                Score memory temp = leaderboard[i - 1];
+                leaderboard[i - 1] = leaderboard[i];
+                leaderboard[i] = temp;
+                i--;
+            }
         }
-
-        // Store the index where the score was inserted for player-specific retrieval
-        playerScoreIndices[newScore.player].push(i);
     }
 
     // --- Admin Functions ---
@@ -196,22 +207,6 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
         return topScores;
     }
 
-    /**
-     * @dev Get scores for a specific player.
-     * @param _player Address of the player.
-     * @return Array of player's scores.
-     */
-    function getPlayerScores(
-        address _player
-    ) external view returns (Score[] memory) {
-        uint256[] memory indices = playerScoreIndices[_player];
-        Score[] memory result = new Score[](indices.length);
-
-        for (uint256 i = 0; i < indices.length; i++) {
-            result[i] = leaderboard[indices[i]];
-        }
-        return result;
-    }
 
     /**
      * @dev Returns the current size of the leaderboard.
