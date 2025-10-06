@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 // --- Wagmi Imports for Multi-chain Support ---
-import { useAccount, useNetwork, useSwitchNetwork, useWriteContract } from 'wagmi';
+import { useAccount, useConfig, useSwitchChain, useWriteContract } from 'wagmi';
 import { base, baseSepolia } from 'wagmi/chains'; // Import chains used in main.tsx
 
 // --- BASE CHAIN CONFIGURATION ---
@@ -212,9 +212,9 @@ function App() {
   const [scoreSubmissionError, setScoreSubmissionError] = useState('');
 
   // --- Wagmi Hooks ---
-  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount();
-  const { chain: wagmiChain } = useNetwork();
-  const { chains: wagmiChains, switchNetwork: wagmiSwitchNetwork } = useSwitchNetwork();
+  const { address: wagmiAddress, isConnected: wagmiIsConnected, chain: wagmiChain } = useAccount();
+  const { chains: wagmiChains } = useConfig();
+  const { switchChain: wagmiSwitchNetwork } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
 
   // Define a mapping for token symbols based on chain ID
@@ -437,7 +437,7 @@ function App() {
       }
 
       if (wagmiChain?.id !== BASE_CHAIN_ID) {
-        await wagmiSwitchNetwork?.(BASE_CHAIN_ID);
+        await wagmiSwitchNetwork?.({ chainId: BASE_CHAIN_ID });
       }
 
       const txHash = await writeContractAsync({
@@ -832,7 +832,7 @@ function App() {
                 <label htmlFor="chain-select-start">Network:</label>
                 <select
                   id="chain-select-start"
-                  onChange={(e) => wagmiSwitchNetwork?.(parseInt(e.target.value))}
+                  onChange={(e) => wagmiSwitchNetwork?.({ chainId: parseInt(e.target.value) })}
                   value={wagmiChain?.id || ''}
                 >
                   {wagmiChains.map((x) => (

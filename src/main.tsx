@@ -6,8 +6,9 @@ import App from './App.tsx';
 import './index.css';
 
 // --- Wagmi and multi-chain support ---
-import { WagmiConfig, createConfig, http } from 'wagmi';
+import { WagmiProvider, createConfig, http } from 'wagmi';
 import { base, baseSepolia } from 'wagmi/chains';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Define custom chain for Monad Testnet
 const monadTestnet = {
@@ -40,10 +41,14 @@ const config = createConfig({
   ssr: true, // Enable SSR for Farcaster Mini App compatibility
 });
 
+const queryClient = new QueryClient();
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <WagmiConfig config={config}>
-      <App />
-    </WagmiConfig>
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </WagmiProvider>
   </React.StrictMode>,
 );
