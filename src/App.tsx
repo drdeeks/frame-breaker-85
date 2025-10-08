@@ -2,31 +2,22 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 // --- Wagmi Imports for Multi-chain Support ---
-import { useAccount, useNetwork, useSwitchNetwork } from 'wagmi';
+import { useAccount, useNetwork, useSwitchChain, useWriteContract, useConnect } from 'wagmi';
 import { base, baseSepolia } from 'wagmi/chains'; // Import chains used in main.tsx
 
 // --- BASE CHAIN CONFIGURATION ---
 const BASE_CHAIN_ID = 8453; // Base mainnet
-const BASE_RPC_URL = 'https://mainnet.base.org';
-const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // Placeholder - replace with actual contract
+const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // IMPORTANT: Placeholder - replace with your deployed contract address
 const CONTRACT_ABI = [
   {
     "inputs": [
-      {
-        "internalType": "string",
-        "name": "playerName",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "score",
-        "type": "uint256"
-      }
+      { "internalType": "string", "name": "playerName", "type": "string" },
+      { "internalType": "uint256", "name": "score", "type": "uint256" }
     ],
     "name": "submitScore",
     "outputs": [],
@@ -34,26 +25,17 @@ const CONTRACT_ABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getTopScores",
+    "inputs": [
+      { "internalType": "uint256", "name": "_topN", "type": "uint256" }
+    ],
+    "name": "getLeaderboard",
     "outputs": [
       {
         "components": [
-          {
-            "internalType": "string",
-            "name": "playerName",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "score",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "timestamp",
-            "type": "uint256"
-          }
+          { "internalType": "string", "name": "playerName", "type": "string" },
+          { "internalType": "uint256", "name": "score", "type": "uint256" },
+          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+          { "internalType": "address", "name": "player", "type": "address" }
         ],
         "internalType": "struct FrameBreaker.Score[]",
         "name": "",
@@ -69,9 +51,9 @@ const CONTRACT_ABI = [
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 const PADDLE_WIDTH_DEFAULT = 120;
-const PADDLE_HEIGHT = 20;
+const PADDLE_HEIGHT = 22; // Slightly thicker paddle
 const PADDLE_Y = CANVAS_HEIGHT - 40;
-const BALL_RADIUS = 10;
+const BALL_RADIUS = 11; // Slightly larger ball
 const BRICK_COLS = 18;
 const BRICK_ROWS = 10;
 const BRICK_HEIGHT = 18;
@@ -91,8 +73,15 @@ const COLORS = {
   TEXT: '#ffffff',
   BORDER: '#00ffff',
   SHADOW: '#f21170',
-  POWER_UP: '#00ffff',
-  POWER_DOWN: '#f21170',
+  POWER_UP: {
+    'sticky': '#f89a1d',      // Orange for Sticky
+    'paint': '#ff00ff',       // Magenta for Paint
+    'invincible': '#70ff00',  // Green for Invincible
+  },
+  POWER_DOWN: {
+    'add-bricks': '#3d25b5',  // Purple for Add Bricks
+    'shrink-paddle': '#f21170' // Red for Shrink
+  },
   BRICK_DAMAGED: '#999999',
 };
 
@@ -109,40 +98,32 @@ const POWER_DOWN_TYPES = {
 
 const ALL_POWER_TYPES = [...Object.values(POWER_UP_TYPES), ...Object.values(POWER_DOWN_TYPES)];
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 // --- HELPER FUNCTIONS ---
 const generateLevel = async () => {
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Generate a 2D array of numbers for a brick breaker game level layout. The grid must be ${BRICK_ROWS} rows by ${BRICK_COLS} columns. 
+    // Moved AI initialization inside the function to prevent module-level errors
+    const apiKey = import.meta.env.VITE_API_KEY;
+    if (!apiKey) {
+      throw new Error("VITE_API_KEY is not defined.");
+    }
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro"});
+
+    const prompt = `Generate a 2D array of numbers for a brick breaker game level layout. The grid must be ${BRICK_ROWS} rows by ${BRICK_COLS} columns.
       Use numbers 1-4 for different brick types and 0 for empty space.
       The output should be a fun, challenging, and aesthetically pleasing pattern, like a simple spaceship, face, or geometric design.
-      Only output the JSON array.`,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.ARRAY,
-          description: `A 2D array representing the brick layout, ${BRICK_ROWS} rows and ${BRICK_COLS} columns. Each inner array is a row.`,
-          items: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.INTEGER,
-              description: "A number from 0 to 4 representing a brick type or empty space."
-            },
-          },
-        },
-      },
-    });
+      Only output the JSON array.`;
 
-    const layout = JSON.parse(response.text);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = await response.text();
+    const layout = JSON.parse(text);
 
     if (!Array.isArray(layout) || layout.length === 0 || !Array.isArray(layout[0])) {
       throw new Error("Invalid level format from AI");
     }
 
-    const bricks = [];
+    const bricks: any[] = [];
     for (let r = 0; r < BRICK_ROWS; r++) {
       for (let c = 0; c < BRICK_COLS; c++) {
         if (layout[r] && layout[r][c] > 0) {
@@ -166,7 +147,7 @@ const generateLevel = async () => {
   } catch (error) {
     console.error("Failed to generate level, creating a default one.", error);
     // Fallback to a default pattern if API fails
-    const bricks = [];
+    const bricks: any[] = [];
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < BRICK_COLS; c++) {
         const hasPowerUp = Math.random() < POWER_UP_CHANCE;
@@ -190,7 +171,7 @@ const generateLevel = async () => {
 
 
 function App() {
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // start, playing, paused, level-complete, game-over, leaderboard, color-picker, respawning
   const [gameState, setGameState] = useState('start');
   const [paddleX, setPaddleX] = useState((CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2);
@@ -202,77 +183,45 @@ function App() {
     dy: -4,
     attached: true
   });
-  const [bricks, setBricks] = useState([]);
-  const [powerUps, setPowerUps] = useState([]);
+  const [bricks, setBricks] = useState<any[]>([]);
+  const [powerUps, setPowerUps] = useState<any[]>([]);
   const [activePowerUps, setActivePowerUps] = useState({
-    sticky: 0, // uses
-    shrinkEndTime: 0, // timestamp
-    invincibleEndTime: 0, // timestamp
+    sticky: 0,
+    shrinkEndTime: 0,
+    invincibleEndTime: 0,
   });
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(INITIAL_LIVES);
   const [level, setLevel] = useState(1);
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [initials, setInitials] = useState('');
   const [loading, setLoading] = useState(false);
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
-  const [submittingScore, setSubmittingScore] = useState(false);
+  const [screenShake, setScreenShake] = useState({ endTime: 0, magnitude: 0 });
   const [scoreSubmissionError, setScoreSubmissionError] = useState('');
+  const { writeContract, isPending: isSubmitting } = useWriteContract();
 
   // --- Wagmi Hooks ---
-  const { address: wagmiAddress, isConnected: wagmiIsConnected } = useAccount();
-  const { chain: wagmiChain } = useNetwork();
-  const { chains: wagmiChains, switchNetwork: wagmiSwitchNetwork } = useSwitchNetwork();
+  const { address, isConnected, chain } = useAccount();
+  const { chains, switchChain } = useSwitchChain();
+  const { connectors, connect } = useConnect();
 
   // Define a mapping for token symbols based on chain ID
   const tokenSymbols: { [key: number]: string } = {
-    [base.id]: 'ETH', // Base uses ETH as its native token
-    [baseSepolia.id]: 'ETH', // Base Sepolia also uses ETH
-    10143: 'MONAD', // Monad Testnet
+    [base.id]: 'ETH',
+    [baseSepolia.id]: 'ETH',
   };
 
-  const currentTokenSymbol = wagmiChain ? tokenSymbols[wagmiChain.id] : 'N/A';
+  const currentTokenSymbol = chain ? tokenSymbols[chain.id] : 'N/A';
 
 
   // Initialize Farcaster Mini App SDK
   useEffect(() => {
-    const initializeSDK = async () => {
-      try {
-        // Call ready() to hide splash screen and display content
-        // This is CRITICAL - without this, users see infinite loading screen
-        await sdk.actions.ready();
-        console.log('Farcaster Mini App SDK initialized successfully');
-
-        // Check if wallet is available
-        // Using Farcaster SDK's check for initial connection
-        await checkWalletConnection();
-      } catch (error) {
-        console.error('Failed to initialize Farcaster Mini App SDK:', error);
-        // Continue without SDK if it fails - app will still work in browser
-      }
-    };
-
-    // Initialize SDK after app is fully loaded and ready to display
-    initializeSDK();
-  }, []);
-
-  // Check wallet connection (using Farcaster SDK)
-  const checkWalletConnection = async () => {
     try {
-      const provider = await sdk.wallet.getEthereumProvider();
-      const accounts = await provider.request({ method: 'eth_accounts' }) as string[];
-      if (accounts && accounts.length > 0) {
-        setWalletConnected(true);
-        setWalletAddress(accounts[0]);
-        console.log('Wallet connected:', accounts[0]);
-      }
+      sdk.ready();
     } catch (error) {
-      console.log('No wallet connected or wallet not available');
-      setWalletConnected(false);
-      setWalletAddress('');
+      console.info('Farcaster SDK not in frame, continuing in standalone mode:', error);
     }
-  };
+  }, []);
 
   // Load leaderboard from localStorage
   useEffect(() => {
@@ -288,13 +237,9 @@ function App() {
 
   // Pause Handler
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (gameState === 'playing') {
-          setGameState('paused');
-        } else if (gameState === 'paused') {
-          setGameState('playing');
-        }
+        setGameState(gs => gs === 'playing' ? 'paused' : 'playing');
       }
     };
 
@@ -305,13 +250,9 @@ function App() {
   }, [gameState]);
 
   // Save leaderboard to localStorage
-  const saveLeaderboard = (newLeaderboard) => {
-    try {
-      setLeaderboard(newLeaderboard);
-      localStorage.setItem('frameBreakerLeaderboard', JSON.stringify(newLeaderboard));
-    } catch (e) {
-      console.error("Could not save leaderboard", e);
-    }
+  const saveLeaderboard = (newLeaderboard: any[]) => {
+    setLeaderboard(newLeaderboard);
+    localStorage.setItem('frameBreakerLeaderboard', JSON.stringify(newLeaderboard));
   };
 
   const resetBallAndPaddle = useCallback(() => {
@@ -346,7 +287,7 @@ function App() {
     startNewLevel();
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing' && gameState !== 'color-picker') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -358,7 +299,7 @@ function App() {
     setPaddleX(newPaddleX);
   };
 
-  const handleTouchMove = (e) => {
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (gameState !== 'playing' && gameState !== 'color-picker') return;
     const canvas = canvasRef.current;
     if (!canvas || e.touches.length === 0) return;
@@ -372,139 +313,64 @@ function App() {
 
   const handleClick = () => {
     if (gameState === 'playing' && ball.attached) {
-      setBall(prev => ({
-        ...prev,
-        attached: false,
-        // Ensure the ball always launches upwards
-        dy: -Math.abs(prev.dy) || -4,
-      }));
+      setBall(prev => ({ ...prev, attached: false, dy: -Math.abs(prev.dy) || -4 }));
       if (activePowerUps.sticky > 0) {
         setActivePowerUps(prev => ({ ...prev, sticky: prev.sticky - 1 }));
       }
     }
   };
 
-  // Connect wallet (using Farcaster SDK)
-  const connectWallet = async () => {
-    try {
-      const provider = await sdk.wallet.getEthereumProvider();
-      const accounts = await provider.request({ method: 'eth_requestAccounts' }) as string[];
-      if (accounts && accounts.length > 0) {
-        setWalletConnected(true);
-        setWalletAddress(accounts[0]);
-        console.log('Wallet connected:', accounts[0]);
-      }
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      setScoreSubmissionError('Failed to connect wallet. Please try again.');
+  const connectWallet = () => {
+    const injectedConnector = connectors.find(c => c.id === 'injected');
+    if (injectedConnector) {
+      connect({ connector: injectedConnector });
     }
   };
 
-  // Switch to Base network (using Farcaster SDK)
-  const switchToBase = async () => {
+  const submitScoreToBlockchain = (playerName: string, playerScore: number) => {
+    setScoreSubmissionError('');
     try {
-      const provider = await sdk.wallet.getEthereumProvider();
-      await provider.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: `0x${BASE_CHAIN_ID.toString(16)}` }],
-      });
-      console.log('Switched to Base network');
-    } catch (error) {
-      console.error('Failed to switch to Base network:', error);
-      // Try to add Base network if it doesn't exist
-      try {
-        const provider = await sdk.wallet.getEthereumProvider();
-        await provider.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: `0x${BASE_CHAIN_ID.toString(16)}`,
-            chainName: 'Base',
-            nativeCurrency: {
-              name: 'ETH',
-              symbol: 'ETH',
-              decimals: 18,
-            },
-            rpcUrls: [BASE_RPC_URL],
-            blockExplorerUrls: ['https://basescan.org'],
-          }],
-        });
-      } catch (addError) {
-        console.error('Failed to add Base network:', addError);
-        setScoreSubmissionError('Please add Base network to your wallet manually.');
+      if (!isConnected) {
+        throw new Error('Wallet not connected. Please connect your wallet.');
       }
-    }
-  };
 
-  // Submit score to blockchain
-  const submitScoreToBlockchain = async (playerName, playerScore) => {
-    try {
-      setSubmittingScore(true);
-      setScoreSubmissionError('');
+      if (chain?.id !== BASE_CHAIN_ID) {
+        switchChain?.(BASE_CHAIN_ID);
+      }
 
-      // Ensure wallet is connected (using Farcaster SDK's state)
-      if (!walletConnected) {
-        await connectWallet();
-        if (!walletConnected) {
-          throw new Error('Wallet connection required');
+      writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI,
+        functionName: 'submitScore',
+        args: [playerName, BigInt(playerScore)],
+      }, {
+        onSuccess: (txHash) => {
+          console.log('Score submission transaction hash:', txHash);
+          const newEntry = { name: playerName.toUpperCase(), score: playerScore, txHash };
+          const newLeaderboard = [...leaderboard, newEntry]
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 10);
+          saveLeaderboard(newLeaderboard);
+          setGameState('leaderboard');
+        },
+        onError: (error) => {
+          console.error('Failed to submit score to blockchain:', error);
+          setScoreSubmissionError(`Failed to submit score: ${error.message}`);
         }
-      }
-
-      // Ensure correct chain is selected (using Farcaster SDK's switch)
-      // Note: wagmiChain.id could be used here for a more integrated check
-      if (wagmiChain?.id !== BASE_CHAIN_ID) {
-        await switchToBase(); // Use existing Farcaster SDK switch
-        // After switching, you might want to re-check wagmiChain.id or wait for it to update
-      }
-
-      const provider = await sdk.wallet.getEthereumProvider();
-
-      // Create contract instance
-      const ethers = await import('ethers');
-      const ethersProvider = new ethers.BrowserProvider(provider);
-      const signer = await ethersProvider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
-      // Estimate gas for the transaction
-      const gasEstimate = await contract.submitScore.estimateGas(playerName, playerScore);
-
-      // Submit the transaction with gas fee
-      const tx = await contract.submitScore(playerName, playerScore, {
-        gasLimit: gasEstimate * 120n / 100n, // Add 20% buffer
       });
-
-      console.log('Score submission transaction:', tx.hash);
-
-      // Wait for transaction confirmation
-      const receipt = await tx.wait();
-      console.log('Score submitted successfully:', receipt);
-
-      // Update local leaderboard
-      const newEntry = { name: playerName.toUpperCase(), score: playerScore, txHash: tx.hash };
-      const newLeaderboard = [...leaderboard, newEntry]
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 10);
-      saveLeaderboard(newLeaderboard);
-
-      setGameState('leaderboard');
-      setSubmittingScore(false);
-
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to submit score to blockchain:', error);
       setScoreSubmissionError(`Failed to submit score: ${error.message}`);
-      setSubmittingScore(false);
     }
   };
 
-  const handleInitialsSubmit = (e) => {
+  const handleInitialsSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!initials) return;
 
-    // Use wagmiIsConnected for a more robust check if a wallet is connected via Wagmi
-    if (wagmiIsConnected) {
-      // Submit to blockchain with gas fee
+    if (isConnected) {
       submitScoreToBlockchain(initials, score);
     } else {
-      // Fallback to local storage
       const newEntry = { name: initials.toUpperCase(), score };
       const newLeaderboard = [...leaderboard, newEntry]
         .sort((a, b) => b.score - a.score)
@@ -514,7 +380,7 @@ function App() {
     }
   };
 
-  const activatePowerUp = (type) => {
+  const activatePowerUp = (type: string | null) => {
     switch (type) {
       case POWER_UP_TYPES.STICKY:
         setActivePowerUps(prev => ({ ...prev, sticky: 3 }));
@@ -526,14 +392,14 @@ function App() {
         setActivePowerUps(prev => ({ ...prev, invincibleEndTime: Date.now() + 7000 }));
         break;
       case POWER_DOWN_TYPES.SHRINK_PADDLE:
-        setPaddleWidth(PADDLE_WIDTH_DEFAULT * 0.5); // Increased shrink strength
+        setPaddleWidth(PADDLE_WIDTH_DEFAULT * 0.5);
         setActivePowerUps(prev => ({ ...prev, shrinkEndTime: Date.now() + 20000 }));
         break;
       case POWER_DOWN_TYPES.ADD_BRICKS: {
         const visibleBricks = bricks.filter(b => b.visible);
         const numToAdd = Math.ceil(visibleBricks.length * 0.15);
         const occupiedSlots = new Set(visibleBricks.map(b => `${Math.round((b.y - 50 - BRICK_GAP) / (BRICK_HEIGHT + BRICK_GAP))}-${Math.round((b.x - BRICK_GAP) / (BRICK_WIDTH + BRICK_GAP))}`));
-        const availableSlots = [];
+        const availableSlots: { r: number; c: number }[] = [];
         for (let r = 0; r < BRICK_ROWS; r++) {
           for (let c = 0; c < BRICK_COLS; c++) {
             if (!occupiedSlots.has(`${r}-${c}`)) {
@@ -542,30 +408,30 @@ function App() {
           }
         }
 
-        const newBricks = [...bricks];
+        const newBricksToAdd = [];
         for (let i = 0; i < numToAdd && availableSlots.length > 0; i++) {
           const slotIndex = Math.floor(Math.random() * availableSlots.length);
           const { r, c } = availableSlots.splice(slotIndex, 1)[0];
           const color = COLORS.BRICK[r % COLORS.BRICK.length];
-          newBricks.push({
+          newBricksToAdd.push({
             x: BRICK_GAP + c * (BRICK_WIDTH + BRICK_GAP),
             y: BRICK_GAP + 50 + r * (BRICK_HEIGHT + BRICK_GAP),
             w: BRICK_WIDTH,
             h: BRICK_HEIGHT,
-            hp: 2, // New bricks are also solid
+            hp: 2,
             color: color,
             originalColor: color,
             visible: true,
             powerUpType: null
           });
         }
-        setBricks(newBricks);
+        setBricks(prev => [...prev, ...newBricksToAdd]);
         break;
       }
     }
   };
 
-  const handleColorSelect = (color) => {
+  const handleColorSelect = (color: string) => {
     let clearedCount = 0;
     const newBricks = bricks.map(brick => {
       if (brick.visible && brick.originalColor === color) {
@@ -579,7 +445,6 @@ function App() {
     setGameState('playing');
   };
 
-  // Handles resetting the ball after a life is lost
   useEffect(() => {
     if (gameState === 'respawning') {
       resetBallAndPaddle();
@@ -587,83 +452,109 @@ function App() {
     }
   }, [gameState, resetBallAndPaddle]);
 
-  // Game Loop
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    let animationFrameId;
+    if (!ctx) return;
+    let animationFrameId: number;
 
     const draw = () => {
-      // Clear canvas
+      const now = Date.now();
+      let shakeX = 0;
+      let shakeY = 0;
+      if (now < screenShake.endTime) {
+        shakeX = (Math.random() - 0.5) * screenShake.magnitude;
+        shakeY = (Math.random() - 0.5) * screenShake.magnitude;
+      }
+
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+
       ctx.fillStyle = '#0d0221';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Draw Paddle
-      ctx.fillStyle = COLORS.PADDLE;
-      ctx.shadowColor = COLORS.SHADOW;
-      ctx.shadowBlur = 15;
+      const paddleGradient = ctx.createLinearGradient(paddleX, PADDLE_Y, paddleX, PADDLE_Y + PADDLE_HEIGHT);
+      paddleGradient.addColorStop(0, '#00ffff');
+      paddleGradient.addColorStop(1, '#00b8b8');
+      ctx.fillStyle = paddleGradient;
+      ctx.shadowColor = COLORS.PADDLE;
+      ctx.shadowBlur = 20;
       ctx.fillRect(paddleX, PADDLE_Y, paddleWidth, PADDLE_HEIGHT);
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(paddleX, PADDLE_Y, paddleWidth, PADDLE_HEIGHT);
+      ctx.shadowBlur = 0;
 
-      // Draw Bricks
       bricks.forEach(brick => {
         if (brick.visible) {
           ctx.fillStyle = brick.color;
           ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
+          ctx.strokeStyle = '#0d0221';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(brick.x, brick.y, brick.w, (brick as any).h);
         }
       });
 
-      // Draw Ball
+      ctx.save();
       ctx.beginPath();
       ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
       ctx.fillStyle = COLORS.BALL;
+      ctx.shadowColor = COLORS.BALL;
+      ctx.shadowBlur = 25;
       ctx.fill();
       ctx.closePath();
+      ctx.restore();
 
-      ctx.shadowBlur = 0; // Reset shadow for text
-
-      // Draw Power-ups
-      ctx.font = "20px 'Press Start 2P'";
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
       powerUps.forEach(p => {
-        const isPowerUp = Object.values(POWER_UP_TYPES).includes(p.type);
-        ctx.fillStyle = isPowerUp ? COLORS.POWER_UP : COLORS.POWER_DOWN;
+        const isPowerUp = Object.values(POWER_UP_TYPES).includes(p.type as string);
+        const color = isPowerUp ? (COLORS.POWER_UP as any)[p.type] : (COLORS.POWER_DOWN as any)[p.type];
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, POWER_UP_SIZE, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.closePath();
+        ctx.restore();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = "bold 18px 'Press Start 2P'";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         let text = '';
         if (p.type === POWER_UP_TYPES.STICKY) text = 'S';
         if (p.type === POWER_UP_TYPES.PAINT) text = 'P';
         if (p.type === POWER_UP_TYPES.INVINCIBLE) text = 'I';
         if (p.type === POWER_DOWN_TYPES.ADD_BRICKS) text = '+';
         if (p.type === POWER_DOWN_TYPES.SHRINK_PADDLE) text = '-';
-        ctx.fillText(text, p.x, p.y);
+        ctx.fillText(text, p.x, p.y + 1);
       });
 
-      // Draw HUD
       ctx.fillStyle = COLORS.TEXT;
       ctx.font = "20px 'Press Start 2P'";
       ctx.textBaseline = 'top';
 
-      // Score (left-aligned)
       ctx.textAlign = 'left';
       ctx.fillText(`Score: ${score}`, 20, 20);
 
-      // Level (center-aligned)
       ctx.textAlign = 'center';
       ctx.fillText(`Level: ${level}`, CANVAS_WIDTH / 2, 20);
 
-      // Lives (right-aligned)
       ctx.textAlign = 'right';
-      // Shifted left to make space for the pause button
       ctx.fillText(`Lives: ${lives}`, CANVAS_WIDTH - 180, 20);
 
-      // Reset canvas context state for other potential draws
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
+
+      ctx.restore();
     };
 
     const update = () => {
       if (gameState !== 'playing') return;
 
-      // Update Powerup Timers
       const now = Date.now();
       if (activePowerUps.shrinkEndTime && now > activePowerUps.shrinkEndTime) {
         setPaddleWidth(PADDLE_WIDTH_DEFAULT);
@@ -673,27 +564,24 @@ function App() {
         setActivePowerUps(prev => ({ ...prev, invincibleEndTime: 0 }));
       }
 
-      // Update falling powerups
       const newPowerUps = powerUps.map(p => ({ ...p, y: p.y + POWER_UP_SPEED }))
         .filter(p => {
           if (p.y > PADDLE_Y && p.y < PADDLE_Y + PADDLE_HEIGHT && p.x > paddleX && p.x < paddleX + paddleWidth) {
             activatePowerUp(p.type);
-            return false; // remove from list
+            return false;
           }
-          return p.y < CANVAS_HEIGHT; // remove if off screen
+          return p.y < CANVAS_HEIGHT;
         });
       setPowerUps(newPowerUps);
 
       if (ball.attached) {
         setBall(prev => ({ ...prev, x: paddleX + paddleWidth / 2 }));
-        // Don't return, let the rest of the game logic like powerup timers run
       } else {
         let newBall = { ...ball };
         const speedMultiplier = activePowerUps.invincibleEndTime > 0 ? 1.2 : 1;
         newBall.x += newBall.dx * speedMultiplier;
         newBall.y += newBall.dy * speedMultiplier;
 
-        // Wall collision
         if (newBall.x + BALL_RADIUS > CANVAS_WIDTH || newBall.x - BALL_RADIUS < 0) {
           newBall.dx = -newBall.dx;
         }
@@ -701,21 +589,19 @@ function App() {
           newBall.dy = -newBall.dy;
         }
 
-        // Paddle collision
         if (newBall.y + BALL_RADIUS > PADDLE_Y &&
           newBall.y - BALL_RADIUS < PADDLE_Y + PADDLE_HEIGHT &&
           newBall.x > paddleX && newBall.x < paddleX + paddleWidth) {
-
           if (activePowerUps.sticky > 0) {
             newBall.attached = true;
           } else {
             newBall.dy = -newBall.dy;
-            let deltaX = newBall.x - (paddleX + paddleWidth / 2);
-            newBall.dx = deltaX * 0.2;
+            const MAX_BALL_DX = 6;
+            let hitPos = (newBall.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2);
+            newBall.dx = hitPos * MAX_BALL_DX;
           }
         }
 
-        // Brick collision
         let newBricks = [...bricks];
         let newScore = score;
         let bricksLeft = false;
@@ -727,6 +613,7 @@ function App() {
               if (brick.hp <= 0) {
                 brick.visible = false;
                 newScore += 10;
+                setScreenShake({ endTime: Date.now() + 100, magnitude: 5 });
                 if (brick.powerUpType) {
                   setPowerUps(prev => [...prev, { x: brick.x + brick.w / 2, y: brick.y + brick.h / 2, type: brick.powerUpType }]);
                 }
@@ -741,16 +628,14 @@ function App() {
         setScore(newScore);
         setBricks(newBricks);
 
-        // Check for level complete
         if (!bricksLeft) {
           setLevel(prev => prev + 1);
           setGameState('level-complete');
           setTimeout(() => startNewLevel(), 2000);
-          return; // Exit update loop to prevent further ball movement
+          return;
         }
 
-        // Bottom wall collision (lose life)
-        if (newBall.y + BALL_RADIUS >= CANVAS_HEIGHT) { // More robust boundary check
+        if (newBall.y + BALL_RADIUS >= CANVAS_HEIGHT) {
           if (activePowerUps.invincibleEndTime > 0) {
             newBall.dy = -newBall.dy;
             setBall(newBall);
@@ -760,10 +645,10 @@ function App() {
               setLives(newLives);
               setGameState('respawning');
             } else {
-              setLives(0); // Ensure lives is 0 on game over
+              setLives(0);
               setGameState('game-over');
             }
-            return; // Stop the update loop. A state change will restart it.
+            return;
           }
         } else {
           setBall(newBall);
@@ -782,14 +667,10 @@ function App() {
     return () => {
       window.cancelAnimationFrame(animationFrameId);
     };
-  }, [gameState, paddleX, paddleWidth, ball, bricks, score, lives, level, startNewLevel, powerUps, activePowerUps]);
+  }, [gameState, paddleX, paddleWidth, ball, bricks, score, lives, level, startNewLevel, powerUps, activePowerUps, resetBallAndPaddle]);
 
   const togglePause = () => {
-    if (gameState === 'playing') {
-      setGameState('paused');
-    } else if (gameState === 'paused') {
-      setGameState('playing');
-    }
+    setGameState(prev => prev === 'playing' ? 'paused' : 'playing');
   };
 
   const renderUI = () => {
@@ -812,16 +693,15 @@ function App() {
             <p>An AI-Powered Brick Smasher</p>
             <button onClick={startGame}>Start Game</button>
             <button onClick={() => setGameState('leaderboard')}>Leaderboard</button>
-            {/* --- Chain Switcher in Start Menu --- */}
-            {wagmiChains.length > 1 && (
+            {chains.length > 1 && (
               <div className="chain-switcher-start">
                 <label htmlFor="chain-select-start">Network:</label>
                 <select
                   id="chain-select-start"
-                  onChange={(e) => wagmiSwitchNetwork?.(parseInt(e.target.value))}
-                  value={wagmiChain?.id || ''}
+                  onChange={(e) => switchChain?.(parseInt(e.target.value))}
+                  value={chain?.id || ''}
                 >
-                  {wagmiChains.map((x) => (
+                  {chains.map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name}
                     </option>
@@ -829,7 +709,6 @@ function App() {
                 </select>
               </div>
             )}
-            {/* --- End Chain Switcher --- */}
           </div>
         );
       case 'paused':
@@ -854,13 +733,12 @@ function App() {
             <h1>Game Over</h1>
             <p>Final Score: {score}</p>
 
-            {/* Wallet Connection Status */}
             <div className="wallet-status">
-              {wagmiIsConnected ? ( // Use Wagmi's connection status
+              {isConnected ? (
                 <div className="wallet-connected">
                   <span>✅ Wallet Connected</span>
-                  <span className="wallet-address">{wagmiAddress?.slice(0, 6)}...{wagmiAddress?.slice(-4)}</span>
-                  <p>Current Chain: {wagmiChain?.name} ({currentTokenSymbol})</p>
+                  <span className="wallet-address">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                  <p>Current Chain: {chain?.name} ({currentTokenSymbol})</p>
                 </div>
               ) : (
                 <div className="wallet-disconnected">
@@ -872,39 +750,44 @@ function App() {
               )}
             </div>
 
-            {/* Score Submission Form */}
-            <form onSubmit={handleInitialsSubmit}>
-              <div className="input-group">
-                <input
-                  type="text"
-                  value={initials}
-                  onChange={(e) => setInitials(e.target.value.slice(0, 3))}
-                  maxLength={3}
-                  placeholder="AAA"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={submittingScore}
-                  className={wagmiIsConnected ? "submit-blockchain-btn" : "submit-local-btn"}
-                >
-                  {submittingScore ? "Submitting..." :
-                    wagmiIsConnected ? `Submit to ${wagmiChain?.name || 'Blockchain'} (Gas Fee)` : "Save Locally"}
-                </button>
-              </div>
-            </form>
+            <div className="score-submission-form">
+              <p className="form-title">Enter Your Initials</p>
+              <form onSubmit={handleInitialsSubmit}>
+                <div className="input-group">
+                  <input
+                    type="text"
+                    value={initials}
+                    onChange={(e) => setInitials(e.target.value.toUpperCase().slice(0, 3))}
+                    maxLength={3}
+                    placeholder="AAA"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className={isConnected ? "submit-blockchain-btn" : "submit-local-btn"}
+                  >
+                    {isSubmitting ? "Submitting..." :
+                      isConnected ? `Submit to ${chain?.name || 'Blockchain'} (Gas Fee)` : "Save Locally"}
+                  </button>
+                </div>
+              </form>
+            </div>
 
-            {/* Error Messages */}
             {scoreSubmissionError && (
               <div className="error-message">
                 {scoreSubmissionError}
               </div>
             )}
+            {writeError && (
+              <div className="error-message">
+                Error: {writeError.message}
+              </div>
+            )}
 
-            {/* Submission Info */}
-            {wagmiIsConnected && (
+            {isConnected && (
               <div className="submission-info">
-                <p>💡 Submitting to {wagmiChain?.name || 'the blockchain'} requires a small gas fee (~$0.01-0.05)</p>
+                <p>💡 Submitting to {chain?.name || 'the blockchain'} requires a small gas fee (~$0.01-0.05)</p>
                 <p>Your score will be permanently recorded on the blockchain!</p>
               </div>
             )}
@@ -921,7 +804,7 @@ function App() {
               {leaderboard.length > 0 ? leaderboard.map((entry, index) => (
                 <li key={index}>
                   <span className="leaderboard-name">{entry.name}</span>
-                  <span className="leaderboard-score">{entry.score}</span>
+                  <span className="leader-score">{entry.score}</span>
                   {entry.txHash && (
                     <span className="blockchain-badge">
                       🔗 <a
@@ -972,7 +855,7 @@ function App() {
       <div
         id="game-wrapper"
         onMouseMove={handleMouseMove}
-        onTouchMove={onTouchMove}
+        onTouchMove={handleTouchMove}
         onClick={handleClick}
         onTouchStart={handleClick}
         style={{

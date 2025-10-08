@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "test": "forge test",
@@ -18,11 +18,13 @@
   },
   "dependencies": {
     "@farcaster/miniapp-sdk": "^0.1.9",
-    "@google/genai": "^1.17.0",
+    "@google/generative-ai": "^0.24.1",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
+    "connectkit": "^1.9.1",
+    "ethers": "^6.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "viem": "^2.27.2",
     "wagmi": "^2.16.0"
   },
