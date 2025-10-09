@@ -1,18 +1,26 @@
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react'; // Import the plugin
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import generateLevelApi from './src/api/generateLevel';
+import dotenv from 'dotenv';
 
-export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
+dotenv.config();
+
+export default defineConfig(() => {
     return {
-      plugins: [react()], // Add the plugins array
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
+      plugins: [
+        react(),
+        {
+          name: 'level-generator-api',
+          configureServer(server) {
+            server.middlewares.use('/api/generateLevel', generateLevelApi);
+          },
+        },
+      ],
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+          'buffer': 'buffer/',
         }
       }
     };

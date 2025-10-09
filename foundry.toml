@@ -1,11 +1,13 @@
 [profile.default]
 src = 'blockchain/contracts'
+test = 'blockchain/test'
 out = 'out'
 libs = ['lib']
 optimizer = true
 optimizer_runs = 200
 solc_version = "0.8.20"
 evm_version = "paris"
+remappings = ["@openzeppelin/=node_modules/@openzeppelin/"]
 
 [rpc_endpoints]
 base = "https://mainnet.base.org"
@@ -27,5 +29,5 @@ optimism = { key = "${OPTIMISTIC_ETHERSCAN_API_KEY}" }
 monad = { key = "${MONADSCAN_API_KEY}", chain = 12345, url = "https://api.monadscan.xyz/api" } # Example Monadscan (replace with actual chain ID and URL)
 monadTestnet = { key = "${MONADSCAN_API_KEY}", chain = 54321, url = "https://api.testnet.monadscan.xyz/api" } # Example Monad Testnetscan (replace with actual chain ID and URL)
 
-[wallets]
+[profile.default.wallets]
 deployer = { keystore = "keystore/DeeksDeployer.json" }

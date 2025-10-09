@@ -7,7 +7,7 @@ import './index.css';
 
 // --- Wagmi and multi-chain support ---
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { base, baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Define custom chain for Monad Testnet
@@ -32,13 +32,11 @@ const monadTestnet = {
 
 // Create wagmi config with the http transport
 const config = createConfig({
-  chains: [base, baseSepolia, monadTestnet],
+  chains: [base, monadTestnet],
   transports: {
     [base.id]: http(),
-    [baseSepolia.id]: http(),
     [monadTestnet.id]: http(),
   },
-  ssr: true, // Enable SSR for Farcaster Mini App compatibility
 });
 
 const queryClient = new QueryClient();
