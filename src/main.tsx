@@ -1,5 +1,3 @@
-// src/main.tsx
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
@@ -7,7 +5,7 @@ import './index.css';
 
 // --- Wagmi and multi-chain support ---
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { base } from 'wagmi/chains';
+import { base, baseSepolia } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Define custom chain for Monad Testnet
@@ -32,9 +30,10 @@ const monadTestnet = {
 
 // Create wagmi config with the http transport
 const config = createConfig({
-  chains: [base, monadTestnet],
+  chains: [base, baseSepolia, monadTestnet],
   transports: {
     [base.id]: http(),
+    [baseSepolia.id]: http(),
     [monadTestnet.id]: http(),
   },
 });

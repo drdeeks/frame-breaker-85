@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-// The GoogleGenAI import is no longer needed on the client-side
+import { useAccount, useConfig, useSwitchChain, useWriteContract } from 'wagmi';
+import { base, baseSepolia } from 'wagmi/chains';
+import { sdk } from '@farcaster/miniapp-sdk';
 import {
+  BASE_CHAIN_ID,
+  CONTRACT_ADDRESS,
+  CONTRACT_ABI,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   PADDLE_WIDTH_DEFAULT,
@@ -44,7 +49,7 @@ const generateLevel = async () => {
             y: BRICK_GAP + 50 + r * (BRICK_HEIGHT + BRICK_GAP),
             w: BRICK_WIDTH,
             h: BRICK_HEIGHT,
-            hp: 2, // All bricks are solid
+            hp: 2,
             color: color,
             originalColor: color,
             visible: true,
@@ -56,22 +61,20 @@ const generateLevel = async () => {
     return bricks;
   } catch (error) {
     console.error("Failed to generate level from API, creating a default one.", error);
-    // Fallback to a default pattern if API fails
     const bricks = [];
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < BRICK_COLS; c++) {
-        const hasPowerUp = Math.random() < POWER_UP_CHANCE;
         const color = COLORS.BRICK[r % COLORS.BRICK.length];
         bricks.push({
           x: BRICK_GAP + c * (BRICK_WIDTH + BRICK_GAP),
           y: BRICK_GAP + 50 + r * (BRICK_HEIGHT + BRICK_GAP),
           w: BRICK_WIDTH,
           h: BRICK_HEIGHT,
-          hp: 2, // All bricks are solid
+          hp: 2,
           color: color,
           originalColor: color,
           visible: true,
-          powerUpType: hasPowerUp ? ALL_POWER_TYPES[Math.floor(Math.random() * ALL_POWER_TYPES.length)] : null,
+          powerUpType: null,
         });
       }
     }
@@ -80,24 +83,24 @@ const generateLevel = async () => {
 };
 
 const useGameLogic = () => {
+  const { address: wagmiAddress, isConnected: wagmiIsConnected, chain: wagmiChain } = useAccount();
+  const { chains: wagmiChains } = useConfig();
+  const { switchChain: wagmiSwitchNetwork } = useSwitchChain();
+  const { writeContractAsync } = useWriteContract();
+
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [initials, setInitials] = useState('');
+  const [submittingScore, setSubmittingScore] = useState(false);
+  const [scoreSubmissionError, setScoreSubmissionError] = useState('');
+
   const canvasRef = useRef(null);
   const [gameState, setGameState] = useState('start');
   const [paddleX, setPaddleX] = useState((CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2);
   const [paddleWidth, setPaddleWidth] = useState(PADDLE_WIDTH_DEFAULT);
-  const [ball, setBall] = useState({
-    x: CANVAS_WIDTH / 2,
-    y: PADDLE_Y - BALL_RADIUS,
-    dx: 4,
-    dy: -4,
-    attached: true
-  });
+  const [ball, setBall] = useState({ x: CANVAS_WIDTH / 2, y: PADDLE_Y - BALL_RADIUS, dx: 4, dy: -4, attached: true });
   const [bricks, setBricks] = useState([]);
   const [powerUps, setPowerUps] = useState([]);
-  const [activePowerUps, setActivePowerUps] = useState({
-    sticky: 0,
-    shrinkEndTime: 0,
-    invincibleEndTime: 0,
-  });
+  const [activePowerUps, setActivePowerUps] = useState({ sticky: 0, shrinkEndTime: 0, invincibleEndTime: 0 });
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(INITIAL_LIVES);
   const [level, setLevel] = useState(1);
@@ -110,13 +113,7 @@ const useGameLogic = () => {
     setPowerUps([]);
     const newPaddleX = (CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2;
     setPaddleX(newPaddleX);
-    setBall({
-      x: newPaddleX + PADDLE_WIDTH_DEFAULT / 2,
-      y: PADDLE_Y - BALL_RADIUS,
-      dx: 4,
-      dy: -4,
-      attached: true,
-    });
+    setBall({ x: newPaddleX + PADDLE_WIDTH_DEFAULT / 2, y: PADDLE_Y - BALL_RADIUS, dx: 4, dy: -4, attached: true });
   }, []);
 
   const startNewLevel = useCallback(async () => {
@@ -196,23 +193,12 @@ const useGameLogic = () => {
             }
           }
         }
-
         const newBricks = [...bricks];
         for (let i = 0; i < numToAdd && availableSlots.length > 0; i++) {
           const slotIndex = Math.floor(Math.random() * availableSlots.length);
           const { r, c } = availableSlots.splice(slotIndex, 1)[0];
           const color = COLORS.BRICK[r % COLORS.BRICK.length];
-          newBricks.push({
-            x: BRICK_GAP + c * (BRICK_WIDTH + BRICK_GAP),
-            y: BRICK_GAP + 50 + r * (BRICK_HEIGHT + BRICK_GAP),
-            w: BRICK_WIDTH,
-            h: BRICK_HEIGHT,
-            hp: 2,
-            color: color,
-            originalColor: color,
-            visible: true,
-            powerUpType: null
-          });
+          newBricks.push({ x: BRICK_GAP + c * (BRICK_WIDTH + BRICK_GAP), y: BRICK_GAP + 50 + r * (BRICK_HEIGHT + BRICK_GAP), w: BRICK_WIDTH, h: BRICK_HEIGHT, hp: 2, color: color, originalColor: color, visible: true, powerUpType: null });
         }
         setBricks(newBricks);
         break;
@@ -237,11 +223,7 @@ const useGameLogic = () => {
   useEffect(() => {
     if (gameState === 'respawning') {
       resetBallAndPaddle();
-      const timer = setTimeout(() => {
-        setBall(prev => ({ ...prev, attached: false }));
-        setGameState('playing');
-      }, 1000); // 1-second delay to give player a moment
-      return () => clearTimeout(timer);
+      setGameState('playing');
     }
   }, [gameState, resetBallAndPaddle]);
 
@@ -249,7 +231,6 @@ const useGameLogic = () => {
     let animationFrameId;
     const update = () => {
       if (gameState !== 'playing') return;
-
       const now = Date.now();
       if (activePowerUps.shrinkEndTime && now > activePowerUps.shrinkEndTime) {
         setPaddleWidth(PADDLE_WIDTH_DEFAULT);
@@ -258,7 +239,6 @@ const useGameLogic = () => {
       if (activePowerUps.invincibleEndTime && now > activePowerUps.invincibleEndTime) {
         setActivePowerUps(prev => ({ ...prev, invincibleEndTime: 0 }));
       }
-
       const newPowerUps = powerUps.map(p => ({ ...p, y: p.y + POWER_UP_SPEED })).filter(p => {
         if (p.y > PADDLE_Y && p.y < PADDLE_Y + PADDLE_HEIGHT && p.x > paddleX && p.x < paddleX + paddleWidth) {
           activatePowerUp(p.type);
@@ -267,7 +247,6 @@ const useGameLogic = () => {
         return p.y < CANVAS_HEIGHT;
       });
       setPowerUps(newPowerUps);
-
       if (ball.attached) {
         setBall(prev => ({ ...prev, x: paddleX + paddleWidth / 2 }));
       } else {
@@ -275,21 +254,17 @@ const useGameLogic = () => {
         const speedMultiplier = activePowerUps.invincibleEndTime > 0 ? 1.2 : 1;
         newBall.x += newBall.dx * speedMultiplier;
         newBall.y += newBall.dy * speedMultiplier;
-
         if (newBall.x + BALL_RADIUS > CANVAS_WIDTH || newBall.x - BALL_RADIUS < 0) newBall.dx = -newBall.dx;
         if (newBall.y - BALL_RADIUS < 0) newBall.dy = -newBall.dy;
-
         if (newBall.y + BALL_RADIUS > PADDLE_Y && newBall.y - BALL_RADIUS < PADDLE_Y + PADDLE_HEIGHT && newBall.x > paddleX && newBall.x < paddleX + paddleWidth) {
           if (activePowerUps.sticky > 0) {
             newBall.attached = true;
           } else {
             newBall.dy = -newBall.dy;
-            const MAX_BALL_DX = 6;
             let hitPos = (newBall.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2);
-            newBall.dx = hitPos * MAX_BALL_DX;
+            newBall.dx = hitPos * 6;
           }
         }
-
         let newBricks = [...bricks];
         let newScore = score;
         let bricksLeft = false;
@@ -314,14 +289,12 @@ const useGameLogic = () => {
         });
         setScore(newScore);
         setBricks(newBricks);
-
         if (!bricksLeft) {
           setLevel(prev => prev + 1);
           setGameState('level-complete');
           setTimeout(() => startNewLevel(), 2000);
           return;
         }
-
         if (newBall.y + BALL_RADIUS >= CANVAS_HEIGHT) {
           if (activePowerUps.invincibleEndTime > 0) {
             newBall.dy = -newBall.dy;
@@ -342,21 +315,93 @@ const useGameLogic = () => {
         }
       }
     };
-
     const gameLoop = () => {
       update();
       animationFrameId = window.requestAnimationFrame(gameLoop);
     };
-
     gameLoop();
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [gameState, paddleX, paddleWidth, ball, bricks, score, lives, level, startNewLevel, powerUps, activePowerUps]);
+  }, [gameState, paddleX, paddleWidth, ball, bricks, score, lives, level, startNewLevel, powerUps, activePowerUps, resetBallAndPaddle]);
 
   const togglePause = (e) => {
     if (e) e.stopPropagation();
     if (gameState === 'playing') setGameState('paused');
     else if (gameState === 'paused') setGameState('playing');
   };
+
+  useEffect(() => {
+    try {
+      const savedLeaderboard = localStorage.getItem('frameBreakerLeaderboard');
+      if (savedLeaderboard) {
+        setLeaderboard(JSON.parse(savedLeaderboard));
+      }
+    } catch (e) {
+      console.error("Could not load leaderboard", e);
+    }
+  }, []);
+
+  const saveLeaderboard = (newLeaderboard) => {
+    try {
+      setLeaderboard(newLeaderboard);
+      localStorage.setItem('frameBreakerLeaderboard', JSON.stringify(newLeaderboard));
+    } catch (e) {
+      console.error("Could not save leaderboard", e);
+    }
+  };
+
+  const connectWallet = async () => {
+    try {
+      await sdk.wallet.getEthereumProvider().request({ method: 'eth_requestAccounts' });
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      setScoreSubmissionError('Failed to connect wallet. Please try again.');
+    }
+  };
+
+  const handleOnChainSubmit = async (e) => {
+    e.preventDefault();
+    if (!initials) return;
+
+    setSubmittingScore(true);
+    setScoreSubmissionError('');
+    try {
+      if (!wagmiIsConnected) throw new Error('Wallet not connected');
+      if (wagmiChain?.id !== BASE_CHAIN_ID) {
+        await wagmiSwitchNetwork?.({ chainId: BASE_CHAIN_ID });
+      }
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI,
+        functionName: 'submitScore',
+        args: [initials, BigInt(score)],
+      });
+      const newEntry = { name: initials.toUpperCase(), score: score, txHash };
+      const newLeaderboard = [...leaderboard, newEntry].sort((a, b) => b.score - a.score).slice(0, 10);
+      saveLeaderboard(newLeaderboard);
+      setGameState('leaderboard');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      setScoreSubmissionError(`Failed to submit score: ${errorMessage}`);
+    } finally {
+      setSubmittingScore(false);
+    }
+  };
+
+  const handleLocalSubmit = (e) => {
+    e.preventDefault();
+    if (!initials) return;
+    const newEntry = { name: initials.toUpperCase(), score };
+    const newLeaderboard = [...leaderboard, newEntry].sort((a, b) => b.score - a.score).slice(0, 10);
+    saveLeaderboard(newLeaderboard);
+    setGameState('leaderboard');
+  };
+
+  const tokenSymbols = {
+    [base.id]: 'ETH',
+    [baseSepolia.id]: 'ETH',
+    10143: 'MONAD',
+  };
+  const currentTokenSymbol = wagmiChain ? tokenSymbols[wagmiChain.id] : 'N/A';
 
   return {
     canvasRef,
@@ -379,6 +424,21 @@ const useGameLogic = () => {
     handleClick,
     togglePause,
     handleColorSelect,
+    leaderboard,
+    initials,
+    setInitials,
+    handleOnChainSubmit,
+    handleLocalSubmit,
+    submittingScore,
+    scoreSubmissionError,
+    wagmiIsConnected,
+    wagmiAddress,
+    wagmiChain,
+    wagmiChains,
+    currentTokenSymbol,
+    connectWallet,
+    wagmiSwitchNetwork,
+    COLORS,
   };
 };
 

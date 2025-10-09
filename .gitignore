@@ -29,9 +29,12 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+<<<<<<< HEAD
 
 # Keystore files
 keystore/
 
 # Rust build artifacts
 rust-tests/target/
+=======
+>>>>>>> main
