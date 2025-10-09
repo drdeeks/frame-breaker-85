@@ -19,8 +19,10 @@
   "dependencies": {
     "@farcaster/miniapp-sdk": "^0.1.9",
     "@google/genai": "^1.22.0",
+    "@tanstack/react-query": "^5.90.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "buffer": "^6.0.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "viem": "^2.37.12",
@@ -38,7 +40,8 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "prettier": "^3.5.3",
     "typescript": "^5.9.3",
-    "vite": "^5.3.3"
+    "vite": "^5.3.3",
+    "vite-plugin-node-polyfills": "^0.24.0"
   },
   "description": "An AI-powered brick breaker game with retro aesthetics and modern features, built as a Farcaster Mini App. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.",
   "main": "eslint.config.js",

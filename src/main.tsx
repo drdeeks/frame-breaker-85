@@ -38,7 +38,6 @@ const config = createConfig({
     [baseSepolia.id]: http(),
     [monadTestnet.id]: http(),
   },
-  ssr: true, // Enable SSR for Farcaster Mini App compatibility
 });
 
 const queryClient = new QueryClient();
