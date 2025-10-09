@@ -21,6 +21,32 @@ function App() {
   const [walletAddress, setWalletAddress] = useState('');
   const [submittingScore, setSubmittingScore] = useState(false);
   const [scoreSubmissionError, setScoreSubmissionError] = useState('');
+  const [farcasterUser, setFarcasterUser] = useState(null);
+
+  const {
+    canvasRef,
+    gameState,
+    setGameState,
+    loading,
+    level,
+    score,
+    lives,
+    PADDLE_Y,
+    paddleX,
+    paddleWidth,
+    bricks,
+    ball,
+    powerUps,
+    screenShake,
+    startGame,
+    handleMouseMove,
+    handleTouchMove,
+    handleClick,
+    togglePause,
+    handleColorSelect,
+    handleMouseEnter,
+    handleMouseLeave,
+  } = useGameLogic();
 
   const {
     canvasRef,
@@ -189,6 +215,8 @@ function App() {
         onTouchMove={handleTouchMove}
         onClick={handleClick}
         onTouchStart={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         style={{
           cursor: (gameState === 'playing' || gameState === 'paused') ? 'none' : 'auto',
         }}
