@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "target": "ES2017",
     "lib": [
       "dom",
       "dom.iterable",
@@ -14,14 +15,13 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx", // Changed from "preserve" to "react-jsx" for Vite
+    "jsx": "react-jsx",
     "incremental": true,
     "paths": {
       "@/*": [
         "./*"
       ]
-    },
-    "target": "ES2017"
+    }
   },
   "include": [
     "**/*.ts",

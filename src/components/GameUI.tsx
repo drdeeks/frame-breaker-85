@@ -8,11 +8,11 @@ const GameUI = ({
   wagmiIsConnected,
   wagmiAddress,
   wagmiChain,
-  currentTokenSymbol,
   connectWallet,
   initials,
   setInitials,
-  handleInitialsSubmit,
+  handleOnChainSubmit,
+  handleLocalSubmit,
   submittingScore,
   scoreSubmissionError,
   startGame,
@@ -23,7 +23,7 @@ const GameUI = ({
   COLORS,
   handleColorSelect,
 }) => {
-  if (gameState === 'playing') return null;
+  if (gameState === 'playing' || gameState === 'paused') return null;
 
   if (loading) {
     return (
@@ -60,15 +60,6 @@ const GameUI = ({
           )}
         </div>
       );
-    case 'paused':
-      return (
-        <div className="game-ui paused">
-          <h2>Paused</h2>
-          <button onClick={(e) => { e.stopPropagation(); setGameState('playing'); }}>Resume</button>
-          <button onClick={(e) => { e.stopPropagation(); startGame(); }}>Restart Game</button>
-          <button onClick={(e) => { e.stopPropagation(); setGameState('start'); }}>Main Menu</button>
-        </div>
-      );
     case 'level-complete':
       return (
         <div className="game-ui">
@@ -77,72 +68,70 @@ const GameUI = ({
         </div>
       );
     case 'game-over':
-        return (
-          <div className="game-ui">
-            <h1>Game Over</h1>
-            <p>Final Score: {score}</p>
+      return (
+        <div className="game-ui">
+          <h1>Game Over</h1>
+          <p>Final Score: {score}</p>
 
-            <form onSubmit={handleInitialsSubmit} className="initials-form">
-              <input
-                type="text"
-                value={initials}
-                onChange={(e) => setInitials(e.target.value.toUpperCase().slice(0, 3))}
-                maxLength={3}
-                placeholder="AAA"
-                autoFocus
-                className="initials-input"
-              />
+          <form onSubmit={handleOnChainSubmit} className="initials-form">
+            <input
+              type="text"
+              value={initials}
+              onChange={(e) => setInitials(e.target.value.toUpperCase().slice(0, 3))}
+              maxLength={3}
+              placeholder="AAA"
+              autoFocus
+              className="initials-input"
+            />
 
-              <div className="submission-options">
-                {/* On-chain submission */}
-                <div className="submission-card blockchain-card">
-                  <h2>On-Chain Leaderboard</h2>
-                  {wagmiIsConnected ? (
-                    <>
-                      <div className="wallet-info">
-                        <p>✅ {wagmiAddress?.slice(0, 6)}...{wagmiAddress?.slice(-4)}</p>
-                        <p>Network: {wagmiChain?.name}</p>
-                      </div>
-                      <button type="submit" disabled={submittingScore || !initials} className="submit-btn">
-                        {submittingScore ? 'Submitting...' : `Submit to ${wagmiChain?.name}`}
-                      </button>
-                      <p className="gas-info">Gas fee required</p>
-                    </>
-                  ) : (
-                    <>
-                      <p>Connect wallet to submit your score on-chain.</p>
-                      <button type="button" onClick={connectWallet} className="connect-btn">
-                        Connect Wallet
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {/* Local submission */}
-                <div className="submission-card local-card">
-                  <h2>Local Leaderboard</h2>
-                  <p>Save your score on this device.</p>
-                  <button
-                    type="button" // Important: prevent form submission
-                    onClick={() => handleInitialsSubmit({ preventDefault: () => {} })} // Pass a dummy event
-                    disabled={!initials}
-                    className="submit-btn"
-                  >
-                    Save Locally
-                  </button>
-                  <p className="gas-info">No gas fee</p>
-                </div>
+            <div className="submission-options">
+              <div className="submission-card blockchain-card">
+                <h2>On-Chain Leaderboard</h2>
+                {wagmiIsConnected ? (
+                  <>
+                    <div className="wallet-info">
+                      <p>✅ {wagmiAddress?.slice(0, 6)}...{wagmiAddress?.slice(-4)}</p>
+                      <p>Network: {wagmiChain?.name}</p>
+                    </div>
+                    <button type="submit" disabled={submittingScore || !initials} className="submit-btn">
+                      {submittingScore ? 'Submitting...' : `Submit to ${wagmiChain?.name}`}
+                    </button>
+                    <p className="gas-info">Gas fee required</p>
+                  </>
+                ) : (
+                  <>
+                    <p>Connect wallet to submit your score on-chain.</p>
+                    <button type="button" onClick={connectWallet} className="connect-btn">
+                      Connect Wallet
+                    </button>
+                  </>
+                )}
               </div>
 
-              {scoreSubmissionError && <p className="error-message">{scoreSubmissionError}</p>}
-            </form>
-
-            <div className="game-over-actions">
-              <button onClick={startGame}>Play Again</button>
-              <button onClick={() => setGameState('leaderboard')}>View Leaderboard</button>
+              <div className="submission-card local-card">
+                <h2>Local Leaderboard</h2>
+                <p>Save your score on this device.</p>
+                <button
+                  type="button"
+                  onClick={handleLocalSubmit}
+                  disabled={!initials}
+                  className="submit-btn"
+                >
+                  Save Locally
+                </button>
+                <p className="gas-info">No gas fee</p>
+              </div>
             </div>
+
+            {scoreSubmissionError && <p className="error-message">{scoreSubmissionError}</p>}
+          </form>
+
+          <div className="game-over-actions">
+            <button onClick={startGame}>Play Again</button>
+            <button onClick={() => setGameState('leaderboard')}>View Leaderboard</button>
           </div>
-        );
+        </div>
+      );
     case 'leaderboard':
       return (
         <div className="game-ui">
