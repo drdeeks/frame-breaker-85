@@ -11,8 +11,21 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
  *      Combines features from previous iterations, including a dynamic, sorted leaderboard,
  *      pausable functionality, and upgradeability.
  * @author Frame Breaker Team (Enhanced by AI)
+ * @notice This contract manages a fixed-size leaderboard for a game.
+ * @custom:version 1.1.0
  */
 contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
+    // --- Custom Errors ---
+    error InvalidScore(uint256 score);
+    error InvalidName(string name);
+    error InsufficientFee(uint256 required, uint256 sent);
+    error NoFeesToWithdraw();
+    error WithdrawFailed();
+    error RefundFailed();
+    error InvalidLeaderboardRequest(uint256 topN);
+    error InvalidNewContractAddress(address addr);
+
+    // --- Data Structures ---
     struct Score {
         string playerName;
         uint256 score;
@@ -20,7 +33,7 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
         address player;
     }
 
-    // Events
+    // --- Events ---
     event ScoreSubmitted(
         address indexed player,
         string playerName,
@@ -31,45 +44,27 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
     event FeesWithdrawn(address indexed to, uint256 amount);
     event ContractUpgraded(address indexed newContract);
 
-    // State variables
-    uint256 public submissionFee; // defaults to 0
+    // --- State Variables ---
+    uint256 public submissionFee;
     uint256 public totalSubmissions;
-    Score[] private leaderboard; // sorted array (descending by score)
+    Score[] private leaderboard; // Sorted array (descending by score)
 
-    // Constants
+    // --- Constants ---
     uint256 public constant MIN_SCORE = 0;
     uint256 public constant MAX_NAME_LENGTH = 10;
-    uint256 public constant MAX_LEADERBOARD_SIZE = 100; // Cap leaderboard size
+    uint256 public immutable MAX_LEADERBOARD_SIZE; // Gas-efficient immutable constant
 
     /**
-     * @dev Constructor - sets up the contract and transfers ownership to the deployer.
-     * @param _initialOwner The address of the initial owner.
+     * @dev Constructor - sets up the contract. The deployer is automatically set as the owner.
      * @param _initialSubmissionFee Fee required to submit a score (in wei).
+     * @param _maxLeaderboardSize The maximum number of entries in the leaderboard.
      */
     constructor(
-        address _initialOwner,
-        uint256 _initialSubmissionFee
-    ) Ownable(_initialOwner) {
+        uint256 _initialSubmissionFee,
+        uint256 _maxLeaderboardSize
+    ) {
         submissionFee = _initialSubmissionFee;
-    }
-
-    // --- Modifiers ---
-    modifier validScore(uint256 _score) {
-        require(_score >= MIN_SCORE, "Score must be non-negative");
-        _;
-    }
-
-    modifier validName(string calldata _name) {
-        require(
-            bytes(_name).length > 0 && bytes(_name).length <= MAX_NAME_LENGTH,
-            "Invalid name length"
-        );
-        _;
-    }
-
-    modifier hasSubmissionFee() {
-        require(msg.value >= submissionFee, "Insufficient submission fee");
-        _;
+        MAX_LEADERBOARD_SIZE = _maxLeaderboardSize;
     }
 
     // --- Core Functions ---
@@ -82,15 +77,18 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
     function submitScore(
         string calldata _playerName,
         uint256 _score
-    )
-        external
-        payable
-        whenNotPaused
-        nonReentrant
-        validScore(_score)
-        validName(_playerName)
-        hasSubmissionFee
-    {
+    ) external payable whenNotPaused nonReentrant {
+        if (_score < MIN_SCORE) revert InvalidScore(_score);
+        if (
+            bytes(_playerName).length == 0 ||
+            bytes(_playerName).length > MAX_NAME_LENGTH
+        ) {
+            revert InvalidName(_playerName);
+        }
+        if (msg.value < submissionFee) {
+            revert InsufficientFee(submissionFee, msg.value);
+        }
+
         Score memory newScore = Score({
             playerName: _playerName,
             score: _score,
@@ -107,7 +105,7 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
         uint256 excessFee = msg.value - submissionFee;
         if (excessFee > 0) {
             (bool success, ) = payable(msg.sender).call{value: excessFee}("");
-            require(success, "FrameBreaker: Refund failed");
+            if (!success) revert RefundFailed();
         }
     }
 
@@ -172,18 +170,24 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
      */
     function withdrawFees(address payable _to) external onlyOwner nonReentrant {
         uint256 balance = address(this).balance;
-        require(balance > 0, "No fees to withdraw");
+        if (balance == 0) revert NoFeesToWithdraw();
+
         (bool sent, ) = _to.call{value: balance}("");
-        require(sent, "Withdraw failed");
+        if (!sent) revert WithdrawFailed();
+
         emit FeesWithdrawn(_to, balance);
     }
 
     /**
-     * @dev Emits an event indicating a contract upgrade. This function is for signaling
-     *      off-chain systems about a new contract address, not for on-chain proxy upgrades.
+     * @dev Emits an event indicating a contract upgrade.
+     * @notice This function is for signaling off-chain systems about a new contract address.
+     *         It does NOT perform an on-chain upgrade (e.g., via a proxy).
      * @param _newContract The address of the new contract.
      */
     function upgradeContract(address _newContract) external onlyOwner {
+        if (_newContract == address(0)) {
+            revert InvalidNewContractAddress(_newContract);
+        }
         emit ContractUpgraded(_newContract);
     }
 
@@ -197,16 +201,15 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
     function getLeaderboard(
         uint256 _topN
     ) external view returns (Score[] memory) {
-        require(_topN > 0, "Must request at least 1 score");
-        uint256 n = _topN > leaderboard.length ? leaderboard.length : _topN;
+        if (_topN == 0) revert InvalidLeaderboardRequest(_topN);
 
+        uint256 n = _topN > leaderboard.length ? leaderboard.length : _topN;
         Score[] memory topScores = new Score[](n);
         for (uint256 i = 0; i < n; i++) {
             topScores[i] = leaderboard[i];
         }
         return topScores;
     }
-
 
     /**
      * @dev Returns the current size of the leaderboard.
@@ -233,6 +236,15 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
         return (totalSubmissions, submissionFee, address(this).balance);
     }
 
-    // Fallback function to accept ETH payments
+    /**
+     * @notice Returns the version of the contract.
+     */
+    function version() external pure returns (string memory) {
+        return "1.1.0";
+    }
+
+    /**
+     * @dev Fallback function to accept direct ETH payments, e.g., for donations.
+     */
     receive() external payable {}
 }
