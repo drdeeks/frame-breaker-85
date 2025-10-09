@@ -543,3 +543,140 @@ canvas {
   color: #70ff00;
   text-decoration: underline;
 }
+
+/* --- Game Over Screen --- */
+
+.initials-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.initials-input {
+  font-family: var(--font-family);
+  width: 300px;
+  padding: 15px;
+  font-size: 1.5rem;
+  text-align: center;
+  background-color: rgba(0,0,0,0.5);
+  border: 2px solid var(--secondary-color);
+  color: var(--text-color);
+  caret-color: var(--accent-color);
+  margin-bottom: 1rem;
+}
+
+.initials-input:focus {
+  outline: none;
+  box-shadow: 0 0 10px var(--secondary-color);
+}
+
+.submission-options {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  width: 100%;
+  max-width: 700px;
+}
+
+.submission-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.3);
+  min-height: 220px;
+  justify-content: space-between;
+}
+
+.submission-card h2 {
+  font-size: 1.2rem;
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+.submission-card p {
+  font-size: 0.9rem;
+  text-align: center;
+  margin: 0.5rem 0;
+  flex-grow: 1;
+}
+
+.blockchain-card {
+  border: 2px solid var(--secondary-color);
+  box-shadow: 0 0 15px var(--secondary-color, 0.3);
+}
+
+.blockchain-card h2 {
+  color: var(--secondary-color);
+}
+
+.local-card {
+  border: 2px solid var(--primary-color);
+  box-shadow: 0 0 15px var(--primary-color, 0.3);
+}
+
+.local-card h2 {
+  color: var(--primary-color);
+}
+
+.wallet-info {
+  font-size: 0.9rem;
+  color: var(--accent-color);
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.wallet-info p {
+  margin: 0.2rem 0;
+}
+
+.submit-btn, .connect-btn {
+  font-family: var(--font-family);
+  font-size: 1rem;
+  padding: 12px 20px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  width: 100%;
+  max-width: 200px;
+}
+
+.submit-btn:hover:not(:disabled), .connect-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.submit-btn:disabled, .connect-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.blockchain-card .submit-btn, .connect-btn {
+  background: var(--secondary-color);
+  color: var(--background-color);
+  box-shadow: 0 0 10px var(--secondary-color);
+}
+
+.local-card .submit-btn {
+  background: var(--primary-color);
+  color: var(--background-color);
+  box-shadow: 0 0 10px var(--primary-color);
+}
+
+.gas-info {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin-top: 1rem !important;
+  flex-grow: 0 !important;
+}
+
+.game-over-actions {
+  margin-top: 2rem;
+  display: flex;
+  gap: 1rem;
+}
