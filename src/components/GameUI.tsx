@@ -20,7 +20,6 @@ const GameUI = ({
   setGameState,
   wagmiChains,
   wagmiSwitchNetwork,
-  farcasterUser,
   COLORS,
   handleColorSelect,
 }) => {
@@ -83,20 +82,13 @@ const GameUI = ({
             <h1>Game Over</h1>
             <p>Final Score: {score}</p>
 
-            {farcasterUser && (
-              <div className="farcaster-user">
-                <p>Signed in as: {farcasterUser.displayName}</p>
-                <p>@{farcasterUser.username}</p>
-              </div>
-            )}
-
             <form onSubmit={handleInitialsSubmit} className="initials-form">
               <input
                 type="text"
                 value={initials}
-                  onChange={(e) => setInitials(e.target.value.slice(0, 16))}
-                  maxLength={16}
-                  placeholder="AAAAAAAA"
+                onChange={(e) => setInitials(e.target.value.toUpperCase().slice(0, 3))}
+                maxLength={3}
+                placeholder="AAA"
                 autoFocus
                 className="initials-input"
               />

@@ -48,6 +48,29 @@ function App() {
     handleMouseLeave,
   } = useGameLogic();
 
+  const {
+    canvasRef,
+    gameState,
+    setGameState,
+    loading,
+    level,
+    score,
+    lives,
+    PADDLE_Y,
+    paddleX,
+    paddleWidth,
+    bricks,
+    ball,
+    powerUps,
+    screenShake,
+    startGame,
+    handleMouseMove,
+    handleTouchMove,
+    handleClick,
+    togglePause,
+    handleColorSelect,
+  } = useGameLogic();
+
   // --- Wagmi Hooks ---
   const { address: wagmiAddress, isConnected: wagmiIsConnected, chain: wagmiChain } = useAccount();
   const { chains: wagmiChains } = useConfig();
@@ -69,13 +92,6 @@ function App() {
       try {
         await sdk.actions.ready();
         console.log('Farcaster Mini App SDK initialized successfully');
-
-        const user = await sdk.getUser();
-        setFarcasterUser(user);
-        if (user?.username) {
-          setInitials(user.username);
-        }
-
         await checkWalletConnection();
       } catch (error) {
         console.error('Failed to initialize Farcaster Mini App SDK:', error);
@@ -215,7 +231,7 @@ function App() {
           wagmiAddress={wagmiAddress}
           wagmiChain={wagmiChain}
           currentTokenSymbol={currentTokenSymbol}
-          connectWallet={() => connect({ connector: connectors[0] })}
+          connectWallet={connectWallet}
           initials={initials}
           setInitials={setInitials}
           handleInitialsSubmit={handleInitialsSubmit}
@@ -226,7 +242,6 @@ function App() {
           setGameState={setGameState}
           wagmiChains={wagmiChains}
           wagmiSwitchNetwork={wagmiSwitchNetwork}
-          farcasterUser={farcasterUser}
           COLORS={COLORS}
           handleColorSelect={handleColorSelect}
         />

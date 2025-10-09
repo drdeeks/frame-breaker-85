@@ -51,7 +51,7 @@ contract FrameBreaker is Ownable, Pausable, ReentrancyGuard {
 
     // --- Constants ---
     uint256 public constant MIN_SCORE = 0;
-    uint256 public constant MAX_NAME_LENGTH = 16;
+    uint256 public constant MAX_NAME_LENGTH = 10;
     uint256 public immutable MAX_LEADERBOARD_SIZE; // Gas-efficient immutable constant
 
     /**

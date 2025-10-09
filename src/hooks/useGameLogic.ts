@@ -87,8 +87,8 @@ const useGameLogic = () => {
   const [ball, setBall] = useState({
     x: CANVAS_WIDTH / 2,
     y: PADDLE_Y - BALL_RADIUS,
-    dx: 3.4,
-    dy: -3.4,
+    dx: 4,
+    dy: -4,
     attached: true
   });
   const [bricks, setBricks] = useState([]);
@@ -103,7 +103,6 @@ const useGameLogic = () => {
   const [level, setLevel] = useState(1);
   const [loading, setLoading] = useState(false);
   const [screenShake, setScreenShake] = useState({ endTime: 0, magnitude: 0 });
-  const [isMouseIn, setIsMouseIn] = useState(true);
 
   const resetBallAndPaddle = useCallback(() => {
     setPaddleWidth(PADDLE_WIDTH_DEFAULT);
@@ -114,8 +113,8 @@ const useGameLogic = () => {
     setBall({
       x: newPaddleX + PADDLE_WIDTH_DEFAULT / 2,
       y: PADDLE_Y - BALL_RADIUS,
-      dx: 3.4,
-      dy: -3.4,
+      dx: 4,
+      dy: -4,
       attached: true,
     });
   }, []);
@@ -277,14 +276,6 @@ const useGameLogic = () => {
         newBall.x += newBall.dx * speedMultiplier;
         newBall.y += newBall.dy * speedMultiplier;
 
-        // Clamp ball speed to prevent it from going too fast
-        const MAX_SPEED = 8;
-        const speed = Math.sqrt(newBall.dx * newBall.dx + newBall.dy * newBall.dy);
-        if (speed > MAX_SPEED) {
-          newBall.dx = (newBall.dx / speed) * MAX_SPEED;
-          newBall.dy = (newBall.dy / speed) * MAX_SPEED;
-        }
-
         if (newBall.x + BALL_RADIUS > CANVAS_WIDTH || newBall.x - BALL_RADIUS < 0) newBall.dx = -newBall.dx;
         if (newBall.y - BALL_RADIUS < 0) newBall.dy = -newBall.dy;
 
@@ -388,8 +379,6 @@ const useGameLogic = () => {
     handleClick,
     togglePause,
     handleColorSelect,
-    handleMouseLeave: () => setIsMouseIn(false),
-    handleMouseEnter: () => setIsMouseIn(true),
   };
 };
 

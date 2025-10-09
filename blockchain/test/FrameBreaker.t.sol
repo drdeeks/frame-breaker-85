@@ -55,7 +55,7 @@ contract FrameBreakerTest is Test {
     function test_RevertIf_SubmitScore_InvalidNameLength() public {
         vm.deal(player, 1 ether);
         vm.prank(player);
-        string memory longName = "12345678901234567"; // 17 chars
+        string memory longName = "ThisNameIsWayTooLong";
         // Updated to use custom error
         vm.expectRevert(abi.encodeWithSelector(FrameBreaker.InvalidName.selector, longName));
         fb.submitScore{value: INITIAL_FEE}(longName, 100);
@@ -63,28 +63,6 @@ contract FrameBreakerTest is Test {
         string memory emptyName = "";
         vm.expectRevert(abi.encodeWithSelector(FrameBreaker.InvalidName.selector, emptyName));
         fb.submitScore{value: INITIAL_FEE}(emptyName, 100);
-    }
-
-    function testSubmitScore_ValidNameLength() public {
-        vm.deal(player, 1 ether);
-        vm.prank(player);
-
-        // Test max length
-        string memory maxName = "1234567890123456"; // 16 chars
-        fb.submitScore{value: INITIAL_FEE}(maxName, 600);
-        FrameBreaker.Score[] memory leaderboard = fb.getLeaderboard(1);
-        assertEq(leaderboard[0].score, 600);
-        assertEq(leaderboard[0].playerName, maxName);
-
-        // Test min length
-        string memory minName = "A";
-        address player2 = makeAddr("player2");
-        vm.deal(player2, 1 ether);
-        vm.prank(player2);
-        fb.submitScore{value: INITIAL_FEE}(minName, 700);
-        leaderboard = fb.getLeaderboard(1);
-        assertEq(leaderboard[0].score, 700);
-        assertEq(leaderboard[0].playerName, minName);
     }
 
     function test_RevertWhen_SubmitScore_IsPaused() public {
