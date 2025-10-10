@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAccount, useConfig, useSwitchChain, useWriteContract } from 'wagmi';
-import { base, baseSepolia } from 'wagmi/chains';
-import { sdk } from '@farcaster/miniapp-sdk';
+import { useAccount, useConfig, useSwitchChain, useWriteContract, useConnect } from 'wagmi';
+import { base } from 'wagmi/chains';
 import {
   BASE_CHAIN_ID,
   CONTRACT_ADDRESS,
@@ -87,6 +86,7 @@ const useGameLogic = () => {
   const { chains: wagmiChains } = useConfig();
   const { switchChain: wagmiSwitchNetwork } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
+  const { connect, connectors } = useConnect();
 
   const [leaderboard, setLeaderboard] = useState([]);
   const [initials, setInitials] = useState('');
@@ -130,6 +130,7 @@ const useGameLogic = () => {
     setScore(0);
     setLives(INITIAL_LIVES);
     setLevel(1);
+    setInitials('');
     startNewLevel();
   };
 
@@ -349,12 +350,12 @@ const useGameLogic = () => {
     }
   };
 
-  const connectWallet = async () => {
-    try {
-      await sdk.wallet.getEthereumProvider().request({ method: 'eth_requestAccounts' });
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      setScoreSubmissionError('Failed to connect wallet. Please try again.');
+  const connectWallet = () => {
+    if (connectors.length > 0) {
+      connect({ connector: connectors[0] });
+    } else {
+      console.error('No connectors found');
+      setScoreSubmissionError('No wallet connectors available.');
     }
   };
 
@@ -398,7 +399,6 @@ const useGameLogic = () => {
 
   const tokenSymbols = {
     [base.id]: 'ETH',
-    [baseSepolia.id]: 'ETH',
     10143: 'MONAD',
   };
   const currentTokenSymbol = wagmiChain ? tokenSymbols[wagmiChain.id] : 'N/A';

@@ -125,7 +125,7 @@ canvas {
 }
 
 .game-ui h1 {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin-bottom: 0.5em;
   color: var(--secondary-color);
   text-shadow: 0 0 10px var(--secondary-color), 0 0 20px #fff;
@@ -278,7 +278,7 @@ canvas {
 
 .initials-input {
   font-family: var(--font-family);
-  width: 150px;
+  width: 300px;
   padding: 15px;
   font-size: 2rem;
   text-align: center;

@@ -5,8 +5,9 @@ import './index.css';
 
 // --- Wagmi and multi-chain support ---
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { base, baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MiniAppProvider } from '@neynar/react';
 
 // Define custom chain for Monad Testnet
 const monadTestnet = {
@@ -28,24 +29,28 @@ const monadTestnet = {
   testnet: true,
 };
 
+import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
+
 // Create wagmi config with the http transport
 const config = createConfig({
-  chains: [base, baseSepolia, monadTestnet],
+  chains: [base, monadTestnet],
   transports: {
     [base.id]: http(),
-    [baseSepolia.id]: http(),
     [monadTestnet.id]: http(),
   },
+  connectors: [farcasterMiniApp()],
 });
 
 const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </WagmiProvider>
+    <MiniAppProvider>
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </WagmiProvider>
+    </MiniAppProvider>
   </React.StrictMode>,
 );

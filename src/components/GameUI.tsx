@@ -77,9 +77,9 @@ const GameUI = ({
             <input
               type="text"
               value={initials}
-              onChange={(e) => setInitials(e.target.value.toUpperCase().slice(0, 3))}
-              maxLength={3}
-              placeholder="AAA"
+              onChange={(e) => setInitials(e.target.value.toUpperCase().slice(0, 8))}
+              maxLength={8}
+              placeholder="AAAAAAAA"
               autoFocus
               className="initials-input"
             />
