@@ -84,6 +84,11 @@ const generateLevel = async () => {
 const useGameLogic = () => {
   const { address: wagmiAddress, isConnected: wagmiIsConnected, chain: wagmiChain } = useAccount();
   const { chains: wagmiChains } = useConfig();
+  const [isConnected, setIsConnected] = useState(wagmiIsConnected);
+
+  useEffect(() => {
+    setIsConnected(wagmiIsConnected);
+  }, [wagmiIsConnected]);
   const { switchChain: wagmiSwitchNetwork } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
   const { connect, connectors } = useConnect();
@@ -431,7 +436,7 @@ const useGameLogic = () => {
     handleLocalSubmit,
     submittingScore,
     scoreSubmissionError,
-    wagmiIsConnected,
+    isConnected,
     wagmiAddress,
     wagmiChain,
     wagmiChains,
