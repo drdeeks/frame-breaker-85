@@ -11,9 +11,10 @@ export const BRICK_HEIGHT = 18;
 export const BRICK_GAP = 3;
 export const BRICK_WIDTH = (CANVAS_WIDTH - BRICK_GAP * (BRICK_COLS + 1)) / BRICK_COLS;
 export const INITIAL_LIVES = 3;
-export const POWER_UP_CHANCE = 0.15;
+export const POWER_UP_CHANCE = 0.35;
 export const POWER_UP_SIZE = 15;
 export const POWER_UP_SPEED = 2;
+export const PADDLE_SMOOTHING = 0.15;
 
 // --- COLOR PALETTE ---
 export const COLORS = {
