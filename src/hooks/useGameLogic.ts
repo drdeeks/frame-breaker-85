@@ -23,6 +23,7 @@ import {
   POWER_UP_TYPES,
   POWER_DOWN_TYPES,
   ALL_POWER_TYPES,
+  PADDLE_SMOOTHING,
 } from '../constants';
 
 const generateLevel = async () => {
@@ -101,6 +102,7 @@ const useGameLogic = () => {
   const canvasRef = useRef(null);
   const [gameState, setGameState] = useState('start');
   const [paddleX, setPaddleX] = useState((CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2);
+  const [targetPaddleX, setTargetPaddleX] = useState((CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2);
   const [paddleWidth, setPaddleWidth] = useState(PADDLE_WIDTH_DEFAULT);
   const [ball, setBall] = useState({ x: CANVAS_WIDTH / 2, y: PADDLE_Y - BALL_RADIUS, dx: 4, dy: -4, attached: true });
   const [bricks, setBricks] = useState([]);
@@ -111,6 +113,7 @@ const useGameLogic = () => {
   const [level, setLevel] = useState(1);
   const [loading, setLoading] = useState(false);
   const [screenShake, setScreenShake] = useState({ endTime: 0, magnitude: 0 });
+  const [flashEffect, setFlashEffect] = useState({ endTime: 0, color: '' });
 
   const resetBallAndPaddle = useCallback(() => {
     setPaddleWidth(PADDLE_WIDTH_DEFAULT);
@@ -148,7 +151,7 @@ const useGameLogic = () => {
     let newPaddleX = (e.clientX - rect.left) * scaleX - paddleWidth / 2;
     if (newPaddleX < 0) newPaddleX = 0;
     if (newPaddleX > CANVAS_WIDTH - paddleWidth) newPaddleX = CANVAS_WIDTH - paddleWidth;
-    setPaddleX(newPaddleX);
+    setTargetPaddleX(newPaddleX);
   };
 
   const handleTouchMove = (e) => {
@@ -160,7 +163,7 @@ const useGameLogic = () => {
     let newPaddleX = (e.touches[0].clientX - rect.left) * scaleX - paddleWidth / 2;
     if (newPaddleX < 0) newPaddleX = 0;
     if (newPaddleX > CANVAS_WIDTH - paddleWidth) newPaddleX = CANVAS_WIDTH - paddleWidth;
-    setPaddleX(newPaddleX);
+    setTargetPaddleX(newPaddleX);
   };
 
   const handleClick = () => {
@@ -173,6 +176,11 @@ const useGameLogic = () => {
   };
 
   const activatePowerUp = (type) => {
+    setScreenShake({ endTime: Date.now() + 200, magnitude: 10 });
+    const isPowerUp = Object.values(POWER_UP_TYPES).includes(type);
+    const flashColor = isPowerUp ? 'rgba(0, 255, 255, 0.5)' : 'rgba(242, 17, 112, 0.5)';
+    setFlashEffect({ endTime: Date.now() + 150, color: flashColor });
+
     switch (type) {
       case POWER_UP_TYPES.STICKY:
         setActivePowerUps(prev => ({ ...prev, sticky: 3 }));
@@ -237,6 +245,9 @@ const useGameLogic = () => {
     let animationFrameId;
     const update = () => {
       if (gameState !== 'playing') return;
+
+      setPaddleX(prevX => prevX + (targetPaddleX - prevX) * PADDLE_SMOOTHING);
+
       const now = Date.now();
       if (activePowerUps.shrinkEndTime && now > activePowerUps.shrinkEndTime) {
         setPaddleWidth(PADDLE_WIDTH_DEFAULT);
@@ -423,6 +434,7 @@ const useGameLogic = () => {
     ball,
     powerUps,
     screenShake,
+    flashEffect,
     startGame,
     handleMouseMove,
     handleTouchMove,
