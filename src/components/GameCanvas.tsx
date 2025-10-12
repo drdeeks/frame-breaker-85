@@ -13,6 +13,7 @@ import {
 const GameCanvas = ({
   canvasRef,
   screenShake,
+  flashEffect,
   paddleX,
   paddleWidth,
   PADDLE_Y,
@@ -43,6 +44,12 @@ const GameCanvas = ({
     // Clear canvas
     ctx.fillStyle = '#0d0221';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Draw flash effect
+    if (now < flashEffect.endTime) {
+      ctx.fillStyle = flashEffect.color;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
 
     // Draw Paddle with 3D effect
     const paddleGradient = ctx.createLinearGradient(paddleX, PADDLE_Y, paddleX, PADDLE_Y + PADDLE_HEIGHT);
@@ -114,7 +121,7 @@ const GameCanvas = ({
     ctx.textAlign = 'left';
     ctx.fillText(`Score: ${score}`, 20, 20);
     ctx.textAlign = 'center';
-    ctx.fillText(`Level: ${level}`, CANVAS_WIDTH / 2, 20);
+    ctx.fillText(`Level ${level}`, CANVAS_WIDTH / 2, 20);
     ctx.textAlign = 'right';
     ctx.fillText(`Lives: ${lives}`, CANVAS_WIDTH - 180, 20);
     ctx.textAlign = 'left';

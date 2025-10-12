@@ -100,7 +100,7 @@ const GameUI = ({
                   </>
                 ) : (
                   <>
-                    <p>Connect wallet to submit your score on-chain.</p>
+                    <p>Connect wallet to submit score.</p>
                     <button type="button" onClick={connectWallet} className="connect-btn">
                       Connect Wallet
                     </button>
