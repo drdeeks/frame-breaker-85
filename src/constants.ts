@@ -15,6 +15,7 @@ export const POWER_UP_CHANCE = 0.35;
 export const POWER_UP_SIZE = 15;
 export const POWER_UP_SPEED = 2;
 export const PADDLE_SMOOTHING = 0.15;
+export const SHRINK_PADDLE_DURATION = 20000; // 20 seconds
 
 // --- COLOR PALETTE ---
 export const COLORS = {

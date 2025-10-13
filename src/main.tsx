@@ -30,6 +30,7 @@ const monadTestnet = {
 };
 
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
+import { walletConnect } from 'wagmi/connectors';
 
 // Create wagmi config with the http transport
 const config = createConfig({
@@ -38,7 +39,10 @@ const config = createConfig({
     [base.id]: http(),
     [monadTestnet.id]: http(),
   },
-  connectors: [farcasterMiniApp()],
+  connectors: [
+    farcasterMiniApp(),
+    walletConnect({ projectId: '047cf03136ea16c3b1ddb82247808d58' }),
+  ],
 });
 
 const queryClient = new QueryClient();
