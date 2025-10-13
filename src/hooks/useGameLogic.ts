@@ -280,6 +280,7 @@ const useGameLogic = () => {
             newBall.dy = -newBall.dy;
             let hitPos = (newBall.x - (paddleX + paddleWidth / 2)) / (paddleWidth / 2);
             newBall.dx = hitPos * 6;
+            setScreenShake({ endTime: Date.now() + 50, magnitude: 2 });
           }
         }
         let newBricks = [...bricks];
@@ -293,7 +294,7 @@ const useGameLogic = () => {
               if (brick.hp <= 0) {
                 brick.visible = false;
                 newScore += 10;
-                setScreenShake({ endTime: Date.now() + 100, magnitude: 5 });
+                setScreenShake({ endTime: Date.now() + 100, magnitude: 7 });
                 if (brick.powerUpType) {
                   setPowerUps(prev => [...prev, { x: brick.x + brick.w / 2, y: brick.y + brick.h / 2, type: brick.powerUpType }]);
                 }
@@ -377,7 +378,10 @@ const useGameLogic = () => {
 
   const handleOnChainSubmit = async (e) => {
     e.preventDefault();
-    if (!initials) return;
+    if (!initials || initials.length < 3) {
+      setScoreSubmissionError('Please enter at least 3 initials.');
+      return;
+    }
 
     setSubmittingScore(true);
     setScoreSubmissionError('');
