@@ -5,7 +5,7 @@ const GameUI = ({
   loading,
   level,
   score,
-  wagmiIsConnected,
+  isConnected,
   wagmiAddress,
   wagmiChain,
   connectWallet,
@@ -87,7 +87,7 @@ const GameUI = ({
             <div className="submission-options">
               <div className="submission-card blockchain-card">
                 <h2>On-Chain Leaderboard</h2>
-                {wagmiIsConnected ? (
+                {isConnected ? (
                   <>
                     <div className="wallet-info">
                       <p>✅ {wagmiAddress?.slice(0, 6)}...{wagmiAddress?.slice(-4)}</p>
