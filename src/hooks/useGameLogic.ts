@@ -193,7 +193,7 @@ const useGameLogic = () => {
         break;
       case POWER_DOWN_TYPES.SHRINK_PADDLE:
         setPaddleWidth(PADDLE_WIDTH_DEFAULT * 0.5);
-        setActivePowerUps(prev => ({ ...prev, shrinkEndTime: Date.now() + 20000 }));
+        setActivePowerUps(prev => ({ ...prev, shrinkEndTime: Date.now() + SHRINK_PADDLE_DURATION }));
         break;
       case POWER_DOWN_TYPES.ADD_BRICKS: {
         const visibleBricks = bricks.filter(b => b.visible);
@@ -244,7 +244,7 @@ const useGameLogic = () => {
   useEffect(() => {
     let animationFrameId;
     const update = () => {
-      if (gameState !== 'playing') return;
+      if (gameState !== 'playing' && gameState !== 'color-picker') return;
 
       setPaddleX(prevX => prevX + (targetPaddleX - prevX) * PADDLE_SMOOTHING);
 
@@ -255,6 +255,7 @@ const useGameLogic = () => {
       }
       if (activePowerUps.invincibleEndTime && now > activePowerUps.invincibleEndTime) {
         setActivePowerUps(prev => ({ ...prev, invincibleEndTime: 0 }));
+        setBall(prev => ({ ...prev, dx: prev.dx / 1.2, dy: prev.dy / 1.2 }));
       }
       const newPowerUps = powerUps.map(p => ({ ...p, y: p.y + POWER_UP_SPEED })).filter(p => {
         if (p.y > PADDLE_Y && p.y < PADDLE_Y + PADDLE_HEIGHT && p.x > paddleX && p.x < paddleX + paddleWidth) {
@@ -368,12 +369,20 @@ const useGameLogic = () => {
   };
 
   const connectWallet = () => {
-    if (connectors.length > 0) {
-      connect({ connector: connectors[0] });
-    } else {
-      console.error('No connectors found');
-      setScoreSubmissionError('No wallet connectors available.');
+    const farcasterConnector = connectors.find(c => c.id === 'farcaster');
+    if (farcasterConnector) {
+      connect({ connector: farcasterConnector });
+      return;
     }
+
+    const walletConnectConnector = connectors.find(c => c.id === 'walletConnect');
+    if (walletConnectConnector) {
+      connect({ connector: walletConnectConnector });
+      return;
+    }
+
+    console.error('No suitable wallet connector found');
+    setScoreSubmissionError('No wallet connectors available. Please connect through Farcaster or WalletConnect.');
   };
 
   const handleOnChainSubmit = async (e) => {
@@ -396,7 +405,7 @@ const useGameLogic = () => {
         functionName: 'submitScore',
         args: [initials, BigInt(score)],
       });
-      const newEntry = { name: initials.toUpperCase(), score: score, txHash };
+      const newEntry = { name: initials.toUpperCase(), score: score, txHash, chainId: wagmiChain.id };
       const newLeaderboard = [...leaderboard, newEntry].sort((a, b) => b.score - a.score).slice(0, 10);
       saveLeaderboard(newLeaderboard);
       setGameState('leaderboard');

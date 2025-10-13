@@ -69,17 +69,7 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 ## Installation & Setup
 
 ### Prerequisites
-<<<<<<< HEAD
-
 - **Node.js 22.11.0 or higher** (LTS version recommended) - Required for Farcaster Mini Apps
-=======
-<<<<<<< HEAD
-
-- **Node.js 22.11.0 or higher** (LTS version recommended) - Required for Farcaster Mini Apps
-=======
-- Node.js (v22.11.0 or higher) - Required for Farcaster Mini Apps
->>>>>>> 86cc80689a7fafafa952500af1ed17941b8f553d
->>>>>>> main
 - Google Gemini AI API key
 - Farcaster account with Developer Mode enabled
 
@@ -126,17 +116,13 @@ To test this Mini App in Farcaster:
 1. Visit [Google AI Studio](https://makersuite.google.com/)
 2. Sign in with your Google account
 3. Create a new API key
-4. Add the API key to your `.env` file
+4. Add the key to your `.env` file
 
 ## Technical Details
 
 ### Built With
 
-<<<<<<< HEAD
 - **React 19** - Modern React with hooks
-=======
-- **React 18** - Modern React with hooks
->>>>>>> main
 - **HTML5 Canvas** - High-performance 2D graphics
 - **Google Gemini AI** - Dynamic level generation
 - **CSS3** - Retro styling and animations
@@ -150,18 +136,9 @@ To test this Mini App in Farcaster:
 - **Discovery File**: `.well-known/farcaster.json` for Mini App discovery
 - **Responsive Design**: Optimized for Farcaster client viewports
 - **Authentication Ready**: Prepared for Farcaster Quick Auth integration
-<<<<<<< HEAD
 - **Notification Support**: Ready for push notifications
 - **Wallet Integration**: Ethereum wallet connection for Base chain transactions
 - **Smart Contract**: Solidity contract for blockchain score submissions
-=======
-<<<<<<< HEAD
-- **Notification Support**: Ready for push notifications
-- **Wallet Integration**: Ethereum wallet connection for Base chain transactions
-- **Smart Contract**: Solidity contract for blockchain score submissions
-=======
->>>>>>> 86cc80689a7fafafa952500af1ed17941b8f553d
->>>>>>> main
 
 ### Game Configuration
 
@@ -207,27 +184,6 @@ The game automatically saves:
 - **Mobile**: iOS Safari, Chrome Mobile, Samsung Internet
 - **Requirements**: Canvas API support, ES6+ JavaScript
 
-<<<<<<< HEAD
-=======
-## Development
-
-### Project Structure
-
-```
-src/
-├── App.js          # Main game component
-├── index.css       # Retro styling and animations
-└── index.js        # React app entry point
-```
-
-### Key Components
-
-- **Game Loop**: 60 FPS rendering and physics
-- **AI Integration**: Gemini API for level generation
-- **State Management**: React hooks for game state
-- **Collision System**: Efficient rectangle-circle collision detection
-
->>>>>>> main
 ## Mini App Deployment
 
 ### Building for Production
@@ -237,11 +193,7 @@ npm run build
 
 ### Publishing to Farcaster
 1. Deploy your built application to a public URL (e.g., Vercel, Netlify)
-<<<<<<< HEAD
 2. Update the URLs in `.well-known/farcaster.json` to match your deployment
-=======
-2. Update the URLs in `farcaster-miniapp.json` to match your deployment
->>>>>>> main
 3. Use the Farcaster Developer Tools to submit your Mini App for review
 4. Once approved, your Mini App will be available in the Farcaster Mini App directory
 
@@ -253,7 +205,6 @@ Make sure to create and upload these assets to your deployment:
 - `hero.png` - Hero image for the Mini App directory
 - `screenshot1.png`, `screenshot2.png`, `screenshot3.png` - Game screenshots
 
-<<<<<<< HEAD
 ## Blockchain Integration
 
 ### Smart Contract Deployment
@@ -269,8 +220,6 @@ Make sure to create and upload these assets to your deployment:
 - **Submission Fee**: Configurable fee in the smart contract
 - **Automatic Network Switching**: App automatically switches to Base network
 
-=======
->>>>>>> main
 ## Troubleshooting
 
 ### Common Issues
@@ -305,52 +254,6 @@ Make sure to create and upload these assets to your deployment:
 - Try refreshing the page
 - Check if browser supports touch events
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-## Mini App Deployment
-
-### Building for Production
-
-```bash
-npm run build
-```
-
-### Publishing to Farcaster
-
-1. Deploy your built application to a public URL (e.g., Vercel, Netlify)
-2. Update the URLs in `farcaster-miniapp.json` to match your deployment
-3. Use the Farcaster Developer Tools to submit your Mini App for review
-4. Once approved, your Mini App will be available in the Farcaster Mini App directory
-
-## Blockchain Integration
-
-### Smart Contract Deployment
-
-1. Deploy the smart contract to Base chain (see `BLOCKCHAIN_SETUP.md`)
-2. Update the contract address in `src/App.tsx`
-3. Test wallet connection and score submission
-4. Monitor gas usage and transaction costs
-
-### Gas Fees
-
-- **Base Chain**: Very low gas fees (~$0.01-0.05 per submission)
-- **Submission Fee**: Configurable fee in the smart contract
-- **Automatic Network Switching**: App automatically switches to Base network
-
-### Required Assets
-
-Make sure to create and upload these assets to your deployment:
-
-- `icon.png` - App icon (512x512px)
-- `og-image.png` - Open Graph image (1200x630px)
-- `splash.png` - Splash screen (1200x630px)
-- `hero.png` - Hero image for the Mini App directory
-- `screenshot1.png`, `screenshot2.png`, `screenshot3.png` - Game screenshots
-
-=======
->>>>>>> 86cc80689a7fafafa952500af1ed17941b8f553d
->>>>>>> main
 ## Contributing
 
 Feel free to contribute improvements:
@@ -373,8 +276,4 @@ This project is licensed under the Apache License 2.0 - see the LICENSE file for
 
 ---
 
-<<<<<<< HEAD
 *Get ready to break some frames! 🕹️*
-=======
-*Get ready to break some frames! 🕹️*
->>>>>>> main

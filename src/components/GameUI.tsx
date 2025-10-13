@@ -144,11 +144,15 @@ const GameUI = ({
                 {entry.txHash && (
                   <span className="blockchain-badge">
                     🔗 <a
-                      href={`https://basescan.org/tx/${entry.txHash}`}
+                      href={
+                        entry.chainId === 10143
+                          ? `https://testnet.monadscan.xyz/tx/${entry.txHash}`
+                          : `https://basescan.org/tx/${entry.txHash}`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      View on Base
+                      View on {entry.chainId === 10143 ? 'Monad' : 'Base'}
                     </a>
                   </span>
                 )}
