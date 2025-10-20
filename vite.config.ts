@@ -1,28 +1,44 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import generateLevelApi from './src/api/generateLevel';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig(({ mode }) => {
   // Load environment variables from .env file
   const env = loadEnv(mode, process.cwd(), '');
 
+  const plugins = [
+    react(),
+    nodePolyfills(), // To handle 'buffer' and other Node.js polyfills
+  ];
+
+  // Conditionally add the server-side API middleware only in development
+  if (mode === 'development') {
+    plugins.push({
+      name: 'level-generator-api',
+      async configureServer(server) {
+        const generateLevelApi = (await import('./src/api/generateLevel')).default;
+        server.middlewares.use('/api/generateLevel', (req, res, next) => {
+          req.env = env;
+          generateLevelApi(req, res, next);
+        });
+      },
+    });
+  }
+
   return {
-    plugins: [
-      react(),
-      nodePolyfills(), // To handle 'buffer' and other Node.js polyfills
-      {
-        name: 'level-generator-api',
-        configureServer(server) {
-          // Pass environment variables to the API route
-          server.middlewares.use('/api/generateLevel', (req, res, next) => {
-            req.env = env;
-            generateLevelApi(req, res, next);
-          });
+    plugins,
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'wagmi-vendor': ['wagmi', 'viem', '@tanstack/react-query'],
+            'neynar-vendor': ['@neynar/react'],
+          },
         },
       },
-    ],
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
