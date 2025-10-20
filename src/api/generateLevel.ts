@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { GoogleGenAI, Type } from '@google/genai';
 import { BRICK_ROWS, BRICK_COLS, BRICK_HEIGHT, BRICK_GAP, BRICK_WIDTH, POWER_UP_CHANCE, COLORS, ALL_POWER_TYPES } from '../constants';
 
