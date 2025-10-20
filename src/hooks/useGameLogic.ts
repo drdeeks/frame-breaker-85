@@ -368,22 +368,19 @@ const useGameLogic = () => {
     }
   };
 
-  const connectWallet = () => {
+  const connectWallet = useCallback(() => {
     const farcasterConnector = connectors.find(c => c.id === 'farcaster');
+    const walletConnectConnector = connectors.find(c => c.id === 'walletConnect');
+
     if (farcasterConnector) {
       connect({ connector: farcasterConnector });
-      return;
-    }
-
-    const walletConnectConnector = connectors.find(c => c.id === 'walletConnect');
-    if (walletConnectConnector) {
+    } else if (walletConnectConnector) {
       connect({ connector: walletConnectConnector });
-      return;
+    } else {
+      console.error('No suitable wallet connector found');
+      setScoreSubmissionError('No wallet connectors available. Please connect through Farcaster or WalletConnect.');
     }
-
-    console.error('No suitable wallet connector found');
-    setScoreSubmissionError('No wallet connectors available. Please connect through Farcaster or WalletConnect.');
-  };
+  }, [connectors, connect]);
 
   const handleOnChainSubmit = async (e) => {
     e.preventDefault();

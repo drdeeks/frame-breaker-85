@@ -271,23 +271,23 @@ canvas {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem; /* Reduced gap */
   width: 100%;
-  margin-top: 1rem;
+  margin-top: 0.5rem; /* Reduced margin */
 }
 
 .initials-input {
   font-family: var(--font-family);
-  width: 300px;
-  padding: 15px;
-  font-size: 2rem;
+  width: 220px; /* Reduced width */
+  padding: 10px; /* Reduced padding */
+  font-size: 1.8rem; /* Reduced font size */
   text-align: center;
   text-transform: uppercase;
   background-color: rgba(0,0,0,0.5);
   border: 2px solid var(--secondary-color);
   color: var(--text-color);
   caret-color: var(--accent-color);
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem; /* Reduced margin */
 }
 
 .initials-input:focus {
@@ -298,9 +298,9 @@ canvas {
 .submission-options {
   display: flex;
   justify-content: center;
-  gap: 2rem;
+  gap: 1.5rem; /* Reduced gap */
   width: 100%;
-  max-width: 700px;
+  max-width: 650px; /* Reduced max-width */
 }
 
 .submission-card {
@@ -308,23 +308,23 @@ canvas {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.5rem;
+  padding: 1.2rem; /* Reduced padding */
   border-radius: 10px;
   background: rgba(0,0,0,0.3);
-  min-height: 220px;
+  min-height: auto; /* Let content define height */
   justify-content: space-between;
 }
 
 .submission-card h2 {
-  font-size: 1.2rem;
-  margin: 0 0 1rem 0;
+  font-size: 1rem; /* Reduced font size */
+  margin: 0 0 0.8rem 0; /* Adjusted margin */
   text-align: center;
 }
 
 .submission-card p {
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* Reduced font size */
   text-align: center;
-  margin: 0.5rem 0;
+  margin: 0.4rem 0; /* Adjusted margin */
   flex-grow: 1;
 }
 
@@ -347,10 +347,10 @@ canvas {
 }
 
 .wallet-info {
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* Reduced font size */
   color: var(--accent-color);
   text-align: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem; /* Reduced margin */
 }
 
 .wallet-info p {
@@ -359,14 +359,14 @@ canvas {
 
 .submit-btn, .connect-btn {
   font-family: var(--font-family);
-  font-size: 1rem;
-  padding: 12px 20px;
+  font-size: 0.9rem; /* Reduced font size */
+  padding: 10px 15px; /* Reduced padding */
   border-radius: 5px;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   width: 100%;
-  max-width: 200px;
+  max-width: 180px; /* Reduced max-width */
 }
 
 .submit-btn:hover:not(:disabled), .connect-btn:hover:not(:disabled) {
@@ -391,14 +391,14 @@ canvas {
 }
 
 .gas-info {
-  font-size: 0.8rem;
+  font-size: 0.7rem; /* Reduced font size */
   opacity: 0.7;
-  margin-top: 1rem !important;
+  margin-top: 0.8rem !important; /* Adjusted margin */
   flex-grow: 0 !important;
 }
 
 .game-over-actions {
-  margin-top: 1.5rem;
+  margin-top: 1rem; /* Reduced margin */
   display: flex;
   gap: 1rem;
 }

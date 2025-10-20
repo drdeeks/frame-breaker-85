@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import GameUI from './components/GameUI';
 import GameCanvas from './components/GameCanvas';
 import useGameLogic from './hooks/useGameLogic';
@@ -7,6 +7,12 @@ import { useMiniApp } from '@neynar/react';
 function App() {
   const gameLogic = useGameLogic();
   const { isSDKLoaded } = useMiniApp();
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      (window as any).gameLogic = gameLogic;
+    }
+  }, [gameLogic]);
 
   return (
     <div id="game-container">
