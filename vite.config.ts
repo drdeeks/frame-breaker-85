@@ -23,6 +23,17 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'wagmi-vendor': ['wagmi', 'viem', '@tanstack/react-query'],
+            'neynar-vendor': ['@neynar/react'],
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

@@ -53,37 +53,9 @@ export const ALL_POWER_TYPES = [...Object.values(POWER_UP_TYPES), ...Object.valu
 // --- BASE CHAIN CONFIGURATION ---
 export const BASE_CHAIN_ID = 8453; // Base mainnet
 export const BASE_RPC_URL = 'https://mainnet.base.org';
-export const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000'; // IMPORTANT: Placeholder - replace with your deployed contract address
-export const CONTRACT_ABI = [
-  {
-    "inputs": [
-      { "internalType": "string", "name": "playerName", "type": "string" },
-      { "internalType": "uint256", "name": "score", "type": "uint256" }
-    ],
-    "name": "submitScore",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "uint256", "name": "_topN", "type": "uint256" }
-    ],
-    "name": "getLeaderboard",
-    "outputs": [
-      {
-        "components": [
-          { "internalType": "string", "name": "playerName", "type": "string" },
-          { "internalType": "uint256", "name": "score", "type": "uint256" },
-          { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
-          { "internalType": "address", "name": "player", "type": "address" }
-        ],
-        "internalType": "struct FrameBreaker.Score[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
-];
+
+// The contract address is loaded from an environment variable.
+// You must create a .env file and set the VITE_CONTRACT_ADDRESS value.
+export const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+
+export const CONTRACT_ABI = [{"type":"constructor","inputs":[{"name":"_initialSubmissionFee","type":"uint256","internalType":"uint256"},{"name":"_maxLeaderboardSize","type":"uint256","internalType":"uint256"}],"stateMutability":"nonpayable"},{"type":"receive","stateMutability":"payable"},{"type":"function","name":"MAX_LEADERBOARD_SIZE","inputs":[],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"MAX_NAME_LENGTH","inputs":[],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"MIN_SCORE","inputs":[],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"getLeaderboard","inputs":[{"name":"_topN","type":"uint256","internalType":"uint256"}],"outputs":[{"name":"","type":"tuple[]","internalType":"struct FrameBreaker.Score[]","components":[{"name":"playerName","type":"string","internalType":"string"},{"name":"score","type":"uint256","internalType":"uint256"},{"name":"timestamp","type":"uint256","internalType":"uint256"},{"name":"player","type":"address","internalType":"address"}]}],"stateMutability":"view"},{"type":"function","name":"getLeaderboardSize","inputs":[],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"getStats","inputs":[],"outputs":[{"name":"_totalSubmissions","type":"uint256","internalType":"uint256"},{"name":"_submissionFee","type":"uint256","internalType":"uint256"},{"name":"_contractBalance","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"owner","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},{"type":"function","name":"pause","inputs":[],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"paused","inputs":[],"outputs":[{"name":"","type":"bool","internalType":"bool"}],"stateMutability":"view"},{"type":"function","name":"renounceOwnership","inputs":[],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"setSubmissionFee","inputs":[{"name":"_newFee","type":"uint256","internalType":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"submissionFee","inputs":[],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"submitScore","inputs":[{"name":"_playerName","type":"string","internalType":"string"},{"name":"_score","type":"uint256","internalType":"uint256"}],"outputs":[],"stateMutability":"payable"},{"type":"function","name":"totalSubmissions","inputs":[],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"},{"type":"function","name":"transferOwnership","inputs":[{"name":"newOwner","type":"address","internalType":"address"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"unpause","inputs":[],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"upgradeContract","inputs":[{"name":"_newContract","type":"address","internalType":"address"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"version","inputs":[],"outputs":[{"name":"","type":"string","internalType":"string"}],"stateMutability":"pure"},{"type":"function","name":"withdrawFees","inputs":[{"name":"_to","type":"address","internalType":"address payable"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"event","name":"ContractUpgraded","inputs":[{"name":"newContract","type":"address","indexed":true,"internalType":"address"}],"anonymous":false},{"type":"event","name":"FeesWithdrawn","inputs":[{"name":"to","type":"address","indexed":true,"internalType":"address"},{"name":"amount","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false},{"type":"event","name":"OwnershipTransferred","inputs":[{"name":"previousOwner","type":"address","indexed":true,"internalType":"address"},{"name":"newOwner","type":"address","indexed":true,"internalType":"address"}],"anonymous":false},{"type":"event","name":"Paused","inputs":[{"name":"account","type":"address","indexed":false,"internalType":"address"}],"anonymous":false},{"type":"event","name":"ScoreSubmitted","inputs":[{"name":"player","type":"address","indexed":true,"internalType":"address"},{"name":"playerName","type":"string","indexed":false,"internalType":"string"},{"name":"score","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"timestamp","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false},{"type":"event","name":"SubmissionFeeUpdated","inputs":[{"name":"newFee","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false},{"type":"event","name":"Unpaused","inputs":[{"name":"account","type":"address","indexed":false,"internalType":"address"}],"anonymous":false},{"type":"error","name":"InsufficientFee","inputs":[{"name":"required","type":"uint256","internalType":"uint256"},{"name":"sent","type":"uint256","internalType":"uint256"}]},{"type":"error","name":"InvalidLeaderboardRequest","inputs":[{"name":"topN","type":"uint256","internalType":"uint256"}]},{"type":"error","name":"InvalidName","inputs":[{"name":"name","type":"string","internalType":"string"}]},{"type":"error","name":"InvalidNewContractAddress","inputs":[{"name":"addr","type":"address","internalType":"address"}]},{"type":"error","name":"InvalidScore","inputs":[{"name":"score","type":"uint256","internalType":"uint256"}]},{"type":"error","name":"NoFeesToWithdraw","inputs":[]},{"type":"error","name":"RefundFailed","inputs":[]},{"type":"error","name":"WithdrawFailed","inputs":[]}];
