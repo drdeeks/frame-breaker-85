@@ -10,6 +10,12 @@ contract DeployMonad is Script {
 
     function run() external returns (address deployedContract) {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+
+        if (deployerPrivateKey == 0) {
+            console.log("Error: PRIVATE_KEY environment variable not set.");
+            return address(0);
+        }
+
         uint256 initialSubmissionFee = 0.0001 ether;
 
         vm.startBroadcast(deployerPrivateKey);
@@ -20,5 +26,11 @@ contract DeployMonad is Script {
 
         deployedContract = address(fb);
         console.log("FrameBreaker deployed to Monad:", deployedContract);
+
+        // Monad verification command
+        console.log("To verify the contract on Monad, run the following command:");
+        console.log("forge verify-contract %s FrameBreaker --chain 10143 --verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org", deployedContract);
+
+        return deployedContract;
     }
 }

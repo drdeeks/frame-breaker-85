@@ -12,7 +12,7 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 - **Quick Auth**: Seamless authentication with Farcaster accounts
 - **Social Sharing**: Easy sharing of scores and achievements
 - **Responsive Design**: Optimized for mobile and desktop Farcaster clients
-- **Blockchain Integration**: Submit scores to Base chain with gas fees
+- **Blockchain Integration**: Submit scores to Base and Monad chains with gas fees
 - **Wallet Support**: Connect Ethereum wallets for blockchain transactions
 
 ## Features
@@ -72,6 +72,7 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 - **Node.js 22.11.0 or higher** (LTS version recommended) - Required for Farcaster Mini Apps
 - Google Gemini AI API key
 - Farcaster account with Developer Mode enabled
+- Foundry for smart contract deployment
 
 ### Environment Setup
 
@@ -89,10 +90,13 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
    npm install
    ```
 
-4. Create a `.env` file in the root directory:
+4. Create a `.env` file in the root directory and add the following variables:
 
    ```env
    GEMINI_API_KEY=your_google_gemini_api_key_here
+   VITE_CONTRACT_ADDRESS=your_deployed_contract_address_here
+   KEYSTORE_PASSPHRASE=your_keystore_passphrase_here
+   BASESCAN_API_KEY=your_basescan_api_key_here
    ```
 
 5. Start the development server:
@@ -118,6 +122,57 @@ To test this Mini App in Farcaster:
 3. Create a new API key
 4. Add the key to your `.env` file
 
+## Smart Contract Deployment
+
+### Environment Variables
+
+Before deploying, you need to set up your environment variables. Create a `.env` file in the root directory of the project and add the following variables:
+
+```env
+# Your private key for deploying the contracts. This is a secret and should not be committed to version control.
+PRIVATE_KEY=your_private_key_here
+
+# Your API key for Etherscan, used for verifying the contract on Base.
+BASESCAN_API_KEY=your_basescan_api_key_here
+
+# The address of the deployed contract. This will be updated automatically by the deployment script.
+VITE_CONTRACT_ADDRESS=your_deployed_contract_address_here
+```
+
+### Deploying to a Network
+
+You can deploy the contracts to Base or Monad using the following commands:
+
+```bash
+# Deploy to Base
+npm run deploy:base
+
+# Deploy to Monad Testnet
+npm run deploy:monadTestnet
+```
+
+#### Base Deployment
+
+The `deploy:base` command will:
+
+1.  Deploy the `FrameBreaker` contract to the Base network.
+2.  Automatically verify the contract on BaseScan.
+3.  Output the contract address.
+
+After deployment, you need to update the `VITE_CONTRACT_ADDRESS` variable in your `.env` file with the new contract address.
+
+#### Monad Deployment
+
+The `deploy:monadTestnet` command will:
+
+1.  Deploy the `FrameBreaker` contract to the Monad testnet.
+2.  Output the command to verify the contract on the Monad block explorer.
+
+After deployment, you need to:
+
+1.  Run the verification command that is output by the script.
+2.  Update the `VITE_CONTRACT_ADDRESS` variable in your `.env` file with the new contract address.
+
 ## Technical Details
 
 ### Built With
@@ -127,6 +182,7 @@ To test this Mini App in Farcaster:
 - **Google Gemini AI** - Dynamic level generation
 - **CSS3** - Retro styling and animations
 - **Farcaster Mini App SDK** - Native Farcaster integration
+- **Foundry** - Smart contract development and deployment
 
 ### Mini App Architecture
 
@@ -137,7 +193,7 @@ To test this Mini App in Farcaster:
 - **Responsive Design**: Optimized for Farcaster client viewports
 - **Authentication Ready**: Prepared for Farcaster Quick Auth integration
 - **Notification Support**: Ready for push notifications
-- **Wallet Integration**: Ethereum wallet connection for Base chain transactions
+- **Wallet Integration**: Ethereum wallet connection for Base and Monad chain transactions
 - **Smart Contract**: Solidity contract for blockchain score submissions
 
 ### Game Configuration
@@ -204,21 +260,6 @@ Make sure to create and upload these assets to your deployment:
 - `splash.png` - Splash screen (1200x630px)
 - `hero.png` - Hero image for the Mini App directory
 - `screenshot1.png`, `screenshot2.png`, `screenshot3.png` - Game screenshots
-
-## Blockchain Integration
-
-### Smart Contract Deployment
-
-1. Deploy the smart contract to Base chain (see `BLOCKCHAIN_SETUP.md`)
-2. Update the contract address in `src/App.tsx`
-3. Test wallet connection and score submission
-4. Monitor gas usage and transaction costs
-
-### Gas Fees
-
-- **Base Chain**: Very low gas fees (~$0.01-0.05 per submission)
-- **Submission Fee**: Configurable fee in the smart contract
-- **Automatic Network Switching**: App automatically switches to Base network
 
 ## Troubleshooting
 
