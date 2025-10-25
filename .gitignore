@@ -1,26 +1,47 @@
 # Dependencies
 node_modules/
+lib/
 .pnp
 .pnp.js
 .yarn/install-state.gz
+
+# Build outputs
+dist/
+build/
+out/
+.vite/
+*.tsbuildinfo
+blockchain/cache/
+blockchain/artifacts/
+rust-tests/target/
 
 # Testing
 coverage/
 .nyc_output/
 
-# Build outputs
-dist/
-build/
-.vite/
-*.tsbuildinfo
-
-# Environment variables
+# Environment variables & Sensitive Files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.gemini/
-gha-creds-*.json
 keystore/
-rust-tests/target/
+keystore_import.py
+gha-creds-*.json
+
+# Logs
+*.log
+LOG.md
+
+# IDE & Editor Config
+.vscode/
+.idea/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Misc
+.gemini/
+docs/
+.github/
