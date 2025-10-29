@@ -24,9 +24,62 @@ import {
   POWER_DOWN_TYPES,
   ALL_POWER_TYPES,
   PADDLE_SMOOTHING,
+  SHRINK_PADDLE_DURATION,
 } from '../constants';
+import { Chain } from 'viem';
 
-const generateLevel = async () => {
+// --- TYPE DEFINITIONS ---
+interface Brick {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  hp: number;
+  color: string;
+  originalColor: string;
+  visible: boolean;
+  powerUpType: string | null;
+}
+
+interface PowerUp {
+  x: number;
+  y: number;
+  type: string;
+}
+
+interface Ball {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  attached: boolean;
+}
+
+interface ActivePowerUps {
+  sticky: number;
+  shrinkEndTime: number;
+  invincibleEndTime: number;
+}
+
+interface ScreenShake {
+  endTime: number;
+  magnitude: number;
+}
+
+interface FlashEffect {
+  endTime: number;
+  color: string;
+}
+
+interface LeaderboardEntry {
+  name: string;
+  score: number;
+  txHash?: string;
+  chainId?: number;
+}
+
+
+const generateLevel = async (): Promise<Brick[]> => {
   try {
     const response = await fetch('/api/generateLevel');
     if (!response.ok) {
@@ -38,7 +91,7 @@ const generateLevel = async () => {
       throw new Error("Invalid level format from API");
     }
 
-    const bricks = [];
+    const bricks: Brick[] = [];
     for (let r = 0; r < BRICK_ROWS; r++) {
       for (let c = 0; c < BRICK_COLS; c++) {
         if (layout[r] && layout[r][c] > 0) {
@@ -61,7 +114,7 @@ const generateLevel = async () => {
     return bricks;
   } catch (error) {
     console.error("Failed to generate level from API, creating a default one.", error);
-    const bricks = [];
+    const bricks: Brick[] = [];
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < BRICK_COLS; c++) {
         const color = COLORS.BRICK[r % COLORS.BRICK.length];
@@ -94,26 +147,26 @@ const useGameLogic = () => {
   const { writeContractAsync } = useWriteContract();
   const { connect, connectors } = useConnect();
 
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [initials, setInitials] = useState('');
   const [submittingScore, setSubmittingScore] = useState(false);
   const [scoreSubmissionError, setScoreSubmissionError] = useState('');
 
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState('start');
   const [paddleX, setPaddleX] = useState((CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2);
   const [targetPaddleX, setTargetPaddleX] = useState((CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2);
   const [paddleWidth, setPaddleWidth] = useState(PADDLE_WIDTH_DEFAULT);
-  const [ball, setBall] = useState({ x: CANVAS_WIDTH / 2, y: PADDLE_Y - BALL_RADIUS, dx: 4, dy: -4, attached: true });
-  const [bricks, setBricks] = useState([]);
-  const [powerUps, setPowerUps] = useState([]);
-  const [activePowerUps, setActivePowerUps] = useState({ sticky: 0, shrinkEndTime: 0, invincibleEndTime: 0 });
+  const [ball, setBall] = useState<Ball>({ x: CANVAS_WIDTH / 2, y: PADDLE_Y - BALL_RADIUS, dx: 4, dy: -4, attached: true });
+  const [bricks, setBricks] = useState<Brick[]>([]);
+  const [powerUps, setPowerUps] = useState<PowerUp[]>([]);
+  const [activePowerUps, setActivePowerUps] = useState<ActivePowerUps>({ sticky: 0, shrinkEndTime: 0, invincibleEndTime: 0 });
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(INITIAL_LIVES);
   const [level, setLevel] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [screenShake, setScreenShake] = useState({ endTime: 0, magnitude: 0 });
-  const [flashEffect, setFlashEffect] = useState({ endTime: 0, color: '' });
+  const [screenShake, setScreenShake] = useState<ScreenShake>({ endTime: 0, magnitude: 0 });
+  const [flashEffect, setFlashEffect] = useState<FlashEffect>({ endTime: 0, color: '' });
 
   const resetBallAndPaddle = useCallback(() => {
     setPaddleWidth(PADDLE_WIDTH_DEFAULT);
@@ -142,7 +195,7 @@ const useGameLogic = () => {
     startNewLevel();
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing' && gameState !== 'color-picker') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -154,7 +207,7 @@ const useGameLogic = () => {
     setTargetPaddleX(newPaddleX);
   };
 
-  const handleTouchMove = (e) => {
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (gameState !== 'playing' && gameState !== 'color-picker') return;
     const canvas = canvasRef.current;
     if (!canvas || e.touches.length === 0) return;
@@ -175,7 +228,7 @@ const useGameLogic = () => {
     }
   };
 
-  const activatePowerUp = (type) => {
+  const activatePowerUp = (type: string) => {
     setScreenShake({ endTime: Date.now() + 200, magnitude: 10 });
     const isPowerUp = Object.values(POWER_UP_TYPES).includes(type);
     const flashColor = isPowerUp ? 'rgba(0, 255, 255, 0.5)' : 'rgba(242, 17, 112, 0.5)';
@@ -199,7 +252,7 @@ const useGameLogic = () => {
         const visibleBricks = bricks.filter(b => b.visible);
         const numToAdd = Math.ceil(visibleBricks.length * 0.15);
         const occupiedSlots = new Set(visibleBricks.map(b => `${Math.round((b.y - 50 - BRICK_GAP) / (BRICK_HEIGHT + BRICK_GAP))}-${Math.round((b.x - BRICK_GAP) / (BRICK_WIDTH + BRICK_GAP))}`));
-        const availableSlots = [];
+        const availableSlots: { r: number, c: number }[] = [];
         for (let r = 0; r < BRICK_ROWS; r++) {
           for (let c = 0; c < BRICK_COLS; c++) {
             if (!occupiedSlots.has(`${r}-${c}`)) {
@@ -220,7 +273,7 @@ const useGameLogic = () => {
     }
   };
 
-  const handleColorSelect = (color) => {
+  const handleColorSelect = (color: string) => {
     let clearedCount = 0;
     const newBricks = bricks.map(brick => {
       if (brick.visible && brick.originalColor === color) {
@@ -242,7 +295,7 @@ const useGameLogic = () => {
   }, [gameState, resetBallAndPaddle]);
 
   useEffect(() => {
-    let animationFrameId;
+    let animationFrameId: number;
     const update = () => {
       if (gameState !== 'playing' && gameState !== 'color-picker') return;
 
@@ -297,7 +350,7 @@ const useGameLogic = () => {
                 newScore += 10;
                 setScreenShake({ endTime: Date.now() + 100, magnitude: 7 });
                 if (brick.powerUpType) {
-                  setPowerUps(prev => [...prev, { x: brick.x + brick.w / 2, y: brick.y + brick.h / 2, type: brick.powerUpType }]);
+                  setPowerUps(prev => [...prev, { x: brick.x + brick.w / 2, y: brick.y + brick.h / 2, type: brick.powerUpType as string }]);
                 }
               } else {
                 brick.color = COLORS.BRICK_DAMAGED;
@@ -340,9 +393,9 @@ const useGameLogic = () => {
     };
     gameLoop();
     return () => window.cancelAnimationFrame(animationFrameId);
-  }, [gameState, paddleX, paddleWidth, ball, bricks, score, lives, level, startNewLevel, powerUps, activePowerUps, resetBallAndPaddle]);
+  }, [gameState, paddleX, paddleWidth, ball, bricks, score, lives, level, startNewLevel, powerUps, activePowerUps, resetBallAndPaddle, targetPaddleX]);
 
-  const togglePause = (e) => {
+  const togglePause = (e?: React.MouseEvent<HTMLButtonElement>) => {
     if (e) e.stopPropagation();
     if (gameState === 'playing') setGameState('paused');
     else if (gameState === 'paused') setGameState('playing');
@@ -359,7 +412,7 @@ const useGameLogic = () => {
     }
   }, []);
 
-  const saveLeaderboard = (newLeaderboard) => {
+  const saveLeaderboard = (newLeaderboard: LeaderboardEntry[]) => {
     try {
       setLeaderboard(newLeaderboard);
       localStorage.setItem('frameBreakerLeaderboard', JSON.stringify(newLeaderboard));
@@ -382,7 +435,7 @@ const useGameLogic = () => {
     }
   }, [connectors, connect]);
 
-  const handleOnChainSubmit = async (e) => {
+  const handleOnChainSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!initials || initials.length < 3) {
       setScoreSubmissionError('Please enter at least 3 initials.');
@@ -397,12 +450,12 @@ const useGameLogic = () => {
         await wagmiSwitchNetwork?.({ chainId: BASE_CHAIN_ID });
       }
       const txHash = await writeContractAsync({
-        address: CONTRACT_ADDRESS,
+        address: CONTRACT_ADDRESS as `0x${string}`,
         abi: CONTRACT_ABI,
         functionName: 'submitScore',
         args: [initials, BigInt(score)],
       });
-      const newEntry = { name: initials.toUpperCase(), score: score, txHash, chainId: wagmiChain.id };
+      const newEntry: LeaderboardEntry = { name: initials.toUpperCase(), score: score, txHash: txHash, chainId: wagmiChain?.id };
       const newLeaderboard = [...leaderboard, newEntry].sort((a, b) => b.score - a.score).slice(0, 10);
       saveLeaderboard(newLeaderboard);
       setGameState('leaderboard');
@@ -414,16 +467,16 @@ const useGameLogic = () => {
     }
   };
 
-  const handleLocalSubmit = (e) => {
+  const handleLocalSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!initials) return;
-    const newEntry = { name: initials.toUpperCase(), score };
+    const newEntry: LeaderboardEntry = { name: initials.toUpperCase(), score };
     const newLeaderboard = [...leaderboard, newEntry].sort((a, b) => b.score - a.score).slice(0, 10);
     saveLeaderboard(newLeaderboard);
     setGameState('leaderboard');
   };
 
-  const tokenSymbols = {
+  const tokenSymbols: Record<number, string> = {
     [base.id]: 'ETH',
     10143: 'MONAD',
   };
@@ -432,7 +485,7 @@ const useGameLogic = () => {
   return {
     canvasRef,
     gameState,
-    setGameState,
+    setGameState: setGameState as React.Dispatch<React.SetStateAction<string>>,
     loading,
     level,
     score,
@@ -453,14 +506,14 @@ const useGameLogic = () => {
     handleColorSelect,
     leaderboard,
     initials,
-    setInitials,
+    setInitials: setInitials as React.Dispatch<React.SetStateAction<string>>,
     handleOnChainSubmit,
     handleLocalSubmit,
     submittingScore,
     scoreSubmissionError,
     isConnected,
     wagmiAddress,
-    wagmiChain,
+    wagmiChain: wagmiChain as Chain | undefined,
     wagmiChains,
     currentTokenSymbol,
     connectWallet,

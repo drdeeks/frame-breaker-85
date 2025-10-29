@@ -22,8 +22,6 @@ function App() {
         onTouchMove={gameLogic.handleTouchMove}
         onClick={gameLogic.handleClick}
         onTouchStart={gameLogic.handleClick}
-        onMouseEnter={gameLogic.handleMouseEnter}
-        onMouseLeave={gameLogic.handleMouseLeave}
         style={{
           cursor:
             gameLogic.gameState === 'playing' || gameLogic.gameState === 'paused'
