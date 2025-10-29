@@ -1,9 +1,19 @@
+import type { IncomingMessage, ServerResponse } from 'http';
 import { GoogleGenAI, Type } from '@google/genai';
-import { BRICK_ROWS, BRICK_COLS, BRICK_HEIGHT, BRICK_GAP, BRICK_WIDTH, POWER_UP_CHANCE, COLORS, ALL_POWER_TYPES } from '../constants';
+import { BRICK_ROWS, BRICK_COLS } from '../constants';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const apiKey = process.env.GEMINI_API_KEY;
 
-export default async function handler(req, res) {
+export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY is not set.");
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: 'Server configuration error' }));
+    return;
+  }
+  const ai = new GoogleGenAI({ apiKey });
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -27,7 +37,12 @@ export default async function handler(req, res) {
       },
     });
 
-    const layout = JSON.parse(response.text);
+    const text = response.text;
+    if (!text) {
+      throw new Error("AI response text is empty.");
+    }
+    const layout = JSON.parse(text);
+
 
     if (!Array.isArray(layout) || layout.length === 0 || !Array.isArray(layout[0])) {
       throw new Error("Invalid level format from AI");

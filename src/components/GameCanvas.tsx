@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
@@ -10,7 +10,42 @@ import {
   POWER_DOWN_TYPES,
 } from '../constants';
 
-const GameCanvas = ({
+interface Brick {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    visible: boolean;
+    color: string;
+}
+
+interface Ball {
+    x: number;
+    y: number;
+}
+
+interface PowerUp {
+    x: number;
+    y: number;
+    type: string;
+}
+
+interface GameCanvasProps {
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  screenShake: { endTime: number; magnitude: number };
+  flashEffect: { endTime: number; color: string };
+  paddleX: number;
+  paddleWidth: number;
+  PADDLE_Y: number;
+  bricks: Brick[];
+  ball: Ball;
+  powerUps: PowerUp[];
+  score: number;
+  level: number;
+  lives: number;
+}
+
+const GameCanvas: React.FC<GameCanvasProps> = ({
   canvasRef,
   screenShake,
   flashEffect,
@@ -88,31 +123,33 @@ const GameCanvas = ({
 
     // Draw Power-ups
     powerUps.forEach(p => {
-      const isPowerUp = Object.values(POWER_UP_TYPES).includes(p.type);
-      const color = isPowerUp ? COLORS.POWER_UP[p.type] : COLORS.POWER_DOWN[p.type];
+        const isPowerUp = Object.values(POWER_UP_TYPES).includes(p.type as any);
+        const color = isPowerUp
+          ? COLORS.POWER_UP[p.type as keyof typeof COLORS.POWER_UP]
+          : COLORS.POWER_DOWN[p.type as keyof typeof COLORS.POWER_DOWN];
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, POWER_UP_SIZE, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 15;
-      ctx.fill();
-      ctx.closePath();
-      ctx.restore();
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, POWER_UP_SIZE, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.closePath();
+        ctx.restore();
 
-      ctx.fillStyle = '#ffffff';
-      ctx.font = "bold 18px 'Press Start 2P'";
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      let text = '';
-      if (p.type === POWER_UP_TYPES.STICKY) text = 'S';
-      if (p.type === POWER_UP_TYPES.PAINT) text = 'P';
-      if (p.type === POWER_UP_TYPES.INVINCIBLE) text = 'I';
-      if (p.type === POWER_DOWN_TYPES.ADD_BRICKS) text = '+';
-      if (p.type === POWER_DOWN_TYPES.SHRINK_PADDLE) text = '-';
-      ctx.fillText(text, p.x, p.y + 1);
-    });
+        ctx.fillStyle = '#ffffff';
+        ctx.font = "bold 18px 'Press Start 2P'";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        let text = '';
+        if (p.type === POWER_UP_TYPES.STICKY) text = 'S';
+        if (p.type === POWER_UP_TYPES.PAINT) text = 'P';
+        if (p.type === POWER_UP_TYPES.INVINCIBLE) text = 'I';
+        if (p.type === POWER_DOWN_TYPES.ADD_BRICKS) text = '+';
+        if (p.type === POWER_DOWN_TYPES.SHRINK_PADDLE) text = '-';
+        ctx.fillText(text, p.x, p.y + 1);
+      });
 
     // Draw HUD
     ctx.fillStyle = COLORS.TEXT;
@@ -131,6 +168,7 @@ const GameCanvas = ({
   }, [
     canvasRef,
     screenShake,
+    flashEffect,
     paddleX,
     paddleWidth,
     PADDLE_Y,

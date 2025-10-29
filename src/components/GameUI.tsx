@@ -1,28 +1,59 @@
 import React from 'react';
+import { Chain } from 'viem';
 
-const GameUI = ({
-  gameState,
-  loading,
-  level,
-  score,
-  isConnected,
-  wagmiAddress,
-  wagmiChain,
-  connectWallet,
-  initials,
-  setInitials,
-  handleOnChainSubmit,
-  handleLocalSubmit,
-  submittingScore,
-  scoreSubmissionError,
-  startGame,
-  leaderboard,
-  setGameState,
-  wagmiChains,
-  wagmiSwitchNetwork,
-  COLORS,
-  handleColorSelect,
-}) => {
+interface LeaderboardEntry {
+  name: string;
+  score: number;
+  txHash?: string;
+  chainId?: number;
+}
+interface GameUIProps {
+    gameState: string;
+    loading: boolean;
+    level: number;
+    score: number;
+    isConnected: boolean;
+    wagmiAddress?: `0x${string}`;
+    wagmiChain?: Chain;
+    connectWallet: () => void;
+    initials: string;
+    setInitials: (initials: string) => void;
+    handleOnChainSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
+    handleLocalSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+    submittingScore: boolean;
+    scoreSubmissionError: string;
+    startGame: () => void;
+    leaderboard: LeaderboardEntry[];
+    setGameState: (gameState: string) => void;
+    wagmiChains: readonly Chain[];
+    wagmiSwitchNetwork?: (opts: { chainId: number }) => void;
+    COLORS: Record<string, any>;
+    handleColorSelect: (color: string) => void;
+  }
+
+  const GameUI: React.FC<GameUIProps> = ({
+    gameState,
+    loading,
+    level,
+    score,
+    isConnected,
+    wagmiAddress,
+    wagmiChain,
+    connectWallet,
+    initials,
+    setInitials,
+    handleOnChainSubmit,
+    handleLocalSubmit,
+    submittingScore,
+    scoreSubmissionError,
+    startGame,
+    leaderboard,
+    setGameState,
+    wagmiChains,
+    wagmiSwitchNetwork,
+    COLORS,
+    handleColorSelect,
+  }) => {
   if (gameState === 'playing' || gameState === 'paused') return null;
 
   if (loading) {
@@ -113,7 +144,7 @@ const GameUI = ({
                 <p>Save your score on this device.</p>
                 <button
                   type="button"
-                  onClick={handleLocalSubmit}
+                  onClick={(e) => handleLocalSubmit(e as any)}
                   disabled={!initials}
                   className="submit-btn"
                 >
@@ -168,7 +199,7 @@ const GameUI = ({
           <h2>Paint Palette!</h2>
           <p>Choose a color to eliminate all bricks of that type.</p>
           <div className="color-picker-buttons">
-            {COLORS.BRICK.map(color => (
+            {COLORS.BRICK.map((color: string) => (
               <button
                 key={color}
                 style={{
