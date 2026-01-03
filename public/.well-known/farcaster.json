@@ -31,7 +31,7 @@
     "heroImageUrl": "https://frame-breaker-85.vercel.app/hero.png",
     "tagline": "Break frames, not hearts",
     "ogTitle": "Frame Breaker '85 Arcade Game",
-    "ogDescription": "Classic brick breaker with retro 80s aesthetics and dynamically generated levels. Every level is unique!",
+    "ogDescription": "Classic brick breaker with retro 80s aesthetics and dynamically generated levels.",
     "ogImageUrl": "https://frame-breaker-85.vercel.app/og-image.png"
   }
 }
