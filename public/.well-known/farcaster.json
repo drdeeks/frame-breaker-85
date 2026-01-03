@@ -1,4 +1,9 @@
 {
+  "accountAssociation": {
+    "header": "eyJmaWQiOjExMDQ5MTgsInR5cGUiOiJhdXRoIiwia2V5IjoiMHgxMkYxQjM4REMzNUFBNjVCNTBFNTg0OWQwMjU1OTA3ODk1M2FFMjRiIn0",
+    "payload": "eyJkb21haW4iOiJmcmFtZS1icmVha2VyLTg1LnZlcmNlbC5hcHAifQ",
+    "signature": "musZrJfH2LEanQhkEvfg3TYz11yud16DOpehOr1oXa5al4zLuRk4sTMjW3G5ptdUu5DH7zRAtkPUyshO4d0zMRs="
+  },
   "version": "1",
   "name": "Frame Breaker '85",
   "iconUrl": "https://frame-breaker-85.vercel.app/icon.png",
@@ -22,7 +27,6 @@
     "ai",
     "brick-breaker",
     "80s",
-    "neon"
   ],
   "heroImageUrl": "https://frame-breaker-85.vercel.app/hero.png",
   "tagline": "Break frames, not hearts",
