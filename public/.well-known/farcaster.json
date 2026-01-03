@@ -14,7 +14,7 @@
     "splashImageUrl": "https://frame-breaker-85.vercel.app/splash.png",
     "splashBackgroundColor": "#0d0221",
     "subtitle": "AI-Powered Brick Smasher",
-    "description": "An AI-powered brick breaker game with retro 80s aesthetics. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns. Features power-ups, power-downs, and authentic arcade gameplay.",
+    "description": "AI-powered brick breaker with retro 80s aesthetics. Dynamically generated levels using Gemini AI. Features power-ups, power-downs, and authentic arcade gameplay.",
     "screenshotUrls": [
       "https://frame-breaker-85.vercel.app/screenshot1.png",
       "https://frame-breaker-85.vercel.app/screenshot2.png",
@@ -22,7 +22,6 @@
     ],
     "primaryCategory": "games",
     "tags": [
-      "game",
       "arcade",
       "retro",
       "ai",
@@ -31,8 +30,8 @@
     ],
     "heroImageUrl": "https://frame-breaker-85.vercel.app/hero.png",
     "tagline": "Break frames, not hearts",
-    "ogTitle": "Frame Breaker '85 - AI-Powered Retro Arcade Game",
-    "ogDescription": "Experience the ultimate brick breaker with AI-generated levels, retro 80s aesthetics, and modern gameplay mechanics. Every level is unique!",
+    "ogTitle": "Frame Breaker '85 Arcade Game",
+    "ogDescription": "AI-powered brick breaker with retro 80s aesthetics and dynamically generated levels. Every level is unique!",
     "ogImageUrl": "https://frame-breaker-85.vercel.app/og-image.png"
   }
 }
