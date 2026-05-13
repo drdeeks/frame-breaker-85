@@ -1,84 +1,217 @@
 /**
- * @fileoverview Main application component - orchestrates game flow
- * @module App
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
  */
+import { GoogleGenAI, Type } from "@google/genai";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { sdk } from "@farcaster/miniapp-sdk";
 
-import { lazy, Suspense, useState, useEffect, useRef, useCallback } from 'react';
-import { useFarcasterSDK } from './hooks/useFarcasterSDK';
-import { useGameState } from './hooks/useGameState';
-import { useResponsive } from './hooks/useResponsive';
-import { LevelGenerator } from './services/ai/LevelGenerator';
-import { LeaderboardService } from './services/storage/LeaderboardService';
-import { Renderer } from './game/engine/Renderer';
-import { getResponsiveFontSize, screenToCanvas } from './utils/responsive';
-import { circleRectCollision } from './utils/helpers';
-import {
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
-  PADDLE_WIDTH_DEFAULT,
-  PADDLE_Y,
-  BALL_RADIUS,
-  POWER_UP_SPEED,
-  POWER_UP_SIZE,
-  POINTS_PER_BRICK,
-  COLORS,
-  STICKY_USES,
-  SHRINK_DURATION,
-  INVINCIBLE_DURATION,
-  SHRINK_FACTOR,
-  ADD_BRICKS_PERCENTAGE,
-  BRICK_WIDTH,
-  BRICK_HEIGHT,
-  BRICK_GAP,
-  BRICK_ROWS,
-  BRICK_COLS,
-} from './utils/constants';
-import type {
-  BallState,
-  PaddleState,
-  BrickData,
-  PowerUpData,
-  ActivePowerUps,
-  LeaderboardEntry,
-  PowerType,
-} from './utils/types';
+// --- BASE CHAIN CONFIGURATION ---
+const BASE_CHAIN_ID = 8453; // Base mainnet
+const BASE_RPC_URL = "https://mainnet.base.org";
+const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // Placeholder - replace with actual contract
+const CONTRACT_ABI = [
+  {
+    inputs: [
+      {
+        internalType: "string",
+        name: "playerName",
+        type: "string",
+      },
+      {
+        internalType: "uint256",
+        name: "score",
+        type: "uint256",
+      },
+    ],
+    name: "submitScore",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getTopScores",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "string",
+            name: "playerName",
+            type: "string",
+          },
+          {
+            internalType: "uint256",
+            name: "score",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "timestamp",
+            type: "uint256",
+          },
+        ],
+        internalType: "struct FrameBreaker.Score[]",
+        name: "",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+];
 
-// Lazy load UI components
-const StartScreen = lazy(() => import('./components/UI/StartScreen'));
-const GameOverScreen = lazy(() => import('./components/UI/GameOverScreen'));
-const PauseScreen = lazy(() => import('./components/UI/PauseScreen'));
-const LeaderboardScreen = lazy(() => import('./components/UI/LeaderboardScreen'));
-const ColorPickerScreen = lazy(() => import('./components/UI/ColorPickerScreen'));
-const LevelCompleteScreen = lazy(() => import('./components/UI/LevelCompleteScreen'));
-const LoadingScreen = lazy(() => import('./components/UI/LoadingScreen'));
+// --- GAME CONFIGURATION ---
+const CANVAS_WIDTH = 800;
+const CANVAS_HEIGHT = 600;
+const PADDLE_WIDTH_DEFAULT = 120;
+const PADDLE_HEIGHT = 20;
+const PADDLE_Y = CANVAS_HEIGHT - 40;
+const BALL_RADIUS = 10;
+const BRICK_COLS = 18;
+const BRICK_ROWS = 10;
+const BRICK_HEIGHT = 18;
+const BRICK_GAP = 3;
+const BRICK_WIDTH = (CANVAS_WIDTH - BRICK_GAP * (BRICK_COLS + 1)) / BRICK_COLS;
+const INITIAL_LIVES = 3;
+const POWER_UP_CHANCE = 0.15; // 15% chance for a brick to have a power-up
+const POWER_UP_SIZE = 15;
+const POWER_UP_SPEED = 2;
 
-// Initialize services
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-const levelGenerator = new LevelGenerator(apiKey);
-const leaderboardService = new LeaderboardService();
+// --- COLOR PALETTE ---
+const COLORS = {
+  PADDLE: "#00ffff",
+  BALL: "#f21170",
+  BRICK: ["#ff00ff", "#70ff00", "#f89a1d", "#3d25b5"],
+  TEXT: "#ffffff",
+  BORDER: "#00ffff",
+  SHADOW: "#f21170",
+  POWER_UP: "#00ffff",
+  POWER_DOWN: "#f21170",
+  BRICK_DAMAGED: "#999999",
+};
+
+const POWER_UP_TYPES = {
+  STICKY: "sticky",
+  PAINT: "paint",
+  INVINCIBLE: "invincible",
+};
+
+const POWER_DOWN_TYPES = {
+  ADD_BRICKS: "add-bricks",
+  SHRINK_PADDLE: "shrink-paddle",
+};
+
+const ALL_POWER_TYPES = [
+  ...Object.values(POWER_UP_TYPES),
+  ...Object.values(POWER_DOWN_TYPES),
+];
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+// --- HELPER FUNCTIONS ---
+const generateLevel = async () => {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: `Generate a 2D array of numbers for a brick breaker game level layout. The grid must be ${BRICK_ROWS} rows by ${BRICK_COLS} columns. 
+      Use numbers 1-4 for different brick types and 0 for empty space.
+      The output should be a fun, challenging, and aesthetically pleasing pattern, like a simple spaceship, face, or geometric design.
+      Only output the JSON array.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          description: `A 2D array representing the brick layout, ${BRICK_ROWS} rows and ${BRICK_COLS} columns. Each inner array is a row.`,
+          items: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.INTEGER,
+              description:
+                "A number from 0 to 4 representing a brick type or empty space.",
+            },
+          },
+        },
+      },
+    });
+
+    const layout = JSON.parse(response.text);
+
+    if (
+      !Array.isArray(layout) ||
+      layout.length === 0 ||
+      !Array.isArray(layout[0])
+    ) {
+      throw new Error("Invalid level format from AI");
+    }
+
+    const bricks = [];
+    for (let r = 0; r < BRICK_ROWS; r++) {
+      for (let c = 0; c < BRICK_COLS; c++) {
+        if (layout[r] && layout[r][c] > 0) {
+          const hasPowerUp = Math.random() < POWER_UP_CHANCE;
+          const color = COLORS.BRICK[layout[r][c] - 1] || COLORS.BRICK[0];
+          bricks.push({
+            x: BRICK_GAP + c * (BRICK_WIDTH + BRICK_GAP),
+            y: BRICK_GAP + 50 + r * (BRICK_HEIGHT + BRICK_GAP),
+            w: BRICK_WIDTH,
+            h: BRICK_HEIGHT,
+            hp: 2, // All bricks are solid
+            color: color,
+            originalColor: color,
+            visible: true,
+            powerUpType: hasPowerUp
+              ? ALL_POWER_TYPES[
+                  Math.floor(Math.random() * ALL_POWER_TYPES.length)
+                ]
+              : null,
+          });
+        }
+      }
+    }
+    return bricks;
+  } catch (error) {
+    console.error("Failed to generate level, creating a default one.", error);
+    // Fallback to a default pattern if API fails
+    const bricks = [];
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < BRICK_COLS; c++) {
+        const hasPowerUp = Math.random() < POWER_UP_CHANCE;
+        const color = COLORS.BRICK[r % COLORS.BRICK.length];
+        bricks.push({
+          x: BRICK_GAP + c * (BRICK_WIDTH + BRICK_GAP),
+          y: BRICK_GAP + 50 + r * (BRICK_HEIGHT + BRICK_GAP),
+          w: BRICK_WIDTH,
+          h: BRICK_HEIGHT,
+          hp: 2, // All bricks are solid
+          color: color,
+          originalColor: color,
+          visible: true,
+          powerUpType: hasPowerUp
+            ? ALL_POWER_TYPES[
+                Math.floor(Math.random() * ALL_POWER_TYPES.length)
+              ]
+            : null,
+        });
+      }
+    }
+    return bricks;
+  }
+};
 
 function App() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rendererRef = useRef<Renderer | null>(null);
-  const animationFrameRef = useRef<number>(0);
-
-  // Hooks
-  const { isReady } = useFarcasterSDK();
-  const { state, stats, transition, resetStats, incrementScore, decrementLives, nextLevel } =
-    useGameState();
-  const viewport = useResponsive();
-
-  // Game state
-  const [paddle, setPaddle] = useState<PaddleState>({
-    position: { x: (CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2, y: PADDLE_Y },
-    width: PADDLE_WIDTH_DEFAULT,
-    height: 20,
-  });
-
-  const [ball, setBall] = useState<BallState>({
-    position: { x: CANVAS_WIDTH / 2, y: PADDLE_Y - BALL_RADIUS },
-    velocity: { x: 4, y: -4 },
-    radius: BALL_RADIUS,
+  const canvasRef = useRef(null);
+  // start, playing, paused, level-complete, game-over, leaderboard, color-picker, respawning
+  const [gameState, setGameState] = useState("start");
+  const [paddleX, setPaddleX] = useState(
+    (CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2,
+  );
+  const [paddleWidth, setPaddleWidth] = useState(PADDLE_WIDTH_DEFAULT);
+  const [ball, setBall] = useState({
+    x: CANVAS_WIDTH / 2,
+    y: PADDLE_Y - BALL_RADIUS,
+    dx: 4,
+    dy: -4,
     attached: true,
   });
 
@@ -89,39 +222,99 @@ function App() {
     shrinkEndTime: 0,
     invincibleEndTime: 0,
   });
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(INITIAL_LIVES);
+  const [level, setLevel] = useState(1);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [initials, setInitials] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
+  const [submittingScore, setSubmittingScore] = useState(false);
+  const [scoreSubmissionError, setScoreSubmissionError] = useState("");
 
-  // Initialize renderer
+  // Initialize Farcaster Mini App SDK
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const initializeSDK = async () => {
+      try {
+        // Call ready() to hide splash screen and display content
+        // This is CRITICAL - without this, users see infinite loading screen
+        await sdk.actions.ready();
+        console.log("Farcaster Mini App SDK initialized successfully");
+
+        // Check if wallet is available
+        await checkWalletConnection();
+      } catch (error) {
+        console.error("Failed to initialize Farcaster Mini App SDK:", error);
+        // Continue without SDK if it fails - app will still work in browser
+      }
+    };
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const fontSize = getResponsiveFontSize(20, viewport);
-    rendererRef.current = new Renderer(ctx, fontSize);
-  }, [viewport]);
+  // Check wallet connection
+  const checkWalletConnection = async () => {
+    try {
+      const provider = await sdk.wallet.getEthereumProvider();
+      const accounts = (await provider.request({
+        method: "eth_accounts",
+      })) as string[];
+      if (accounts && accounts.length > 0) {
+        setWalletConnected(true);
+        setWalletAddress(accounts[0]);
+        console.log("Wallet connected:", accounts[0]);
+      }
+    } catch (error) {
+      console.log("No wallet connected or wallet not available");
+      setWalletConnected(false);
+      setWalletAddress("");
+    }
+  };
 
   // Load leaderboard
   useEffect(() => {
-    leaderboardService.getTopScores(10).then(setLeaderboard);
+    try {
+      const savedLeaderboard = localStorage.getItem("frameBreakerLeaderboard");
+      if (savedLeaderboard) {
+        setLeaderboard(JSON.parse(savedLeaderboard));
+      }
+    } catch (e) {
+      console.error("Could not load leaderboard", e);
+    }
   }, []);
 
-  // Keyboard controls
+  // Pause Handler
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (state === 'playing') transition('paused');
-        else if (state === 'paused') transition('playing');
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (gameState === "playing") {
+          setGameState("paused");
+        } else if (gameState === "paused") {
+          setGameState("playing");
+        }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state, transition]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [gameState]);
 
-  // Reset ball and paddle
+  // Save leaderboard to localStorage
+  const saveLeaderboard = (newLeaderboard) => {
+    try {
+      setLeaderboard(newLeaderboard);
+      localStorage.setItem(
+        "frameBreakerLeaderboard",
+        JSON.stringify(newLeaderboard),
+      );
+    } catch (e) {
+      console.error("Could not save leaderboard", e);
+    }
+  };
+
   const resetBallAndPaddle = useCallback(() => {
     const newPaddleX = (CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2;
     setPaddle({
@@ -139,90 +332,241 @@ function App() {
     setPowerUps([]);
   }, []);
 
-  // Start new level
   const startNewLevel = useCallback(async () => {
-    transition('loading');
+    setLoading(true);
+    setGameState("loading");
     resetBallAndPaddle();
 
     const newBricks = await levelGenerator.generateLevel(stats.level);
     setBricks(newBricks);
+    setLoading(false);
+    setGameState("playing");
+  }, [resetBallAndPaddle]);
 
-    transition('playing');
-  }, [stats.level, transition, resetBallAndPaddle]);
-
-  // Start game
-  const startGame = useCallback(() => {
-    resetStats();
+  const startGame = () => {
+    setScore(0);
+    setLives(INITIAL_LIVES);
+    setLevel(1);
     startNewLevel();
-  }, [resetStats, startNewLevel]);
+  };
 
-  // Handle mouse/touch move
-  const handlePointerMove = useCallback(
-    (clientX: number) => {
-      if (state !== 'playing' && state !== 'color-picker') return;
+  const handleMouseMove = (e) => {
+    if (gameState !== "playing" && gameState !== "color-picker") return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    let newPaddleX = (e.clientX - rect.left) * scaleX - paddleWidth / 2;
+    if (newPaddleX < 0) newPaddleX = 0;
+    if (newPaddleX > CANVAS_WIDTH - paddleWidth)
+      newPaddleX = CANVAS_WIDTH - paddleWidth;
+    setPaddleX(newPaddleX);
+  };
 
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+  const handleTouchMove = (e) => {
+    if (gameState !== "playing" && gameState !== "color-picker") return;
+    const canvas = canvasRef.current;
+    if (!canvas || e.touches.length === 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    let newPaddleX =
+      (e.touches[0].clientX - rect.left) * scaleX - paddleWidth / 2;
+    if (newPaddleX < 0) newPaddleX = 0;
+    if (newPaddleX > CANVAS_WIDTH - paddleWidth)
+      newPaddleX = CANVAS_WIDTH - paddleWidth;
+    setPaddleX(newPaddleX);
+  };
 
-      const rect = canvas.getBoundingClientRect();
-      const { x } = screenToCanvas(clientX, 0, rect);
-      const newX = Math.max(0, Math.min(x - paddle.width / 2, CANVAS_WIDTH - paddle.width));
-
-      setPaddle((prev) => ({ ...prev, position: { ...prev.position, x: newX } }));
-    },
-    [state, paddle.width]
-  );
-
-  // Handle click/tap to launch ball
-  const handleClick = useCallback(() => {
-    if (state === 'playing' && ball.attached) {
+  const handleClick = () => {
+    if (gameState === "playing" && ball.attached) {
       setBall((prev) => ({
         ...prev,
         attached: false,
-        velocity: { ...prev.velocity, y: -Math.abs(prev.velocity.y) },
+        // Ensure the ball always launches upwards
+        dy: -Math.abs(prev.dy) || -4,
       }));
-
       if (activePowerUps.sticky > 0) {
         setActivePowerUps((prev) => ({ ...prev, sticky: prev.sticky - 1 }));
       }
     }
-  }, [state, ball.attached, activePowerUps.sticky]);
+  };
 
-  // Activate power-up
-  const activatePowerUp = useCallback(
-    (type: PowerType) => {
-      switch (type) {
-        case 'sticky':
-          setActivePowerUps((prev) => ({ ...prev, sticky: STICKY_USES }));
-          break;
-        case 'paint':
-          transition('color-picker');
-          break;
-        case 'invincible':
-          setActivePowerUps((prev) => ({ ...prev, invincibleEndTime: Date.now() + INVINCIBLE_DURATION }));
-          break;
-        case 'shrink-paddle':
-          setPaddle((prev) => ({ ...prev, width: PADDLE_WIDTH_DEFAULT * SHRINK_FACTOR }));
-          setActivePowerUps((prev) => ({ ...prev, shrinkEndTime: Date.now() + SHRINK_DURATION }));
-          break;
-        case 'add-bricks': {
-          const visibleBricks = bricks.filter((b) => b.visible);
-          const numToAdd = Math.ceil(visibleBricks.length * ADD_BRICKS_PERCENTAGE);
-          const occupiedSlots = new Set(
-            visibleBricks.map(
-              (b) =>
-                `${Math.round((b.position.y - 50 - BRICK_GAP) / (BRICK_HEIGHT + BRICK_GAP))}-${Math.round(
-                  (b.position.x - BRICK_GAP) / (BRICK_WIDTH + BRICK_GAP)
-                )}`
-            )
-          );
+  // Connect wallet
+  const connectWallet = async () => {
+    try {
+      const provider = await sdk.wallet.getEthereumProvider();
+      const accounts = (await provider.request({
+        method: "eth_requestAccounts",
+      })) as string[];
+      if (accounts && accounts.length > 0) {
+        setWalletConnected(true);
+        setWalletAddress(accounts[0]);
+        console.log("Wallet connected:", accounts[0]);
+      }
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      setScoreSubmissionError("Failed to connect wallet. Please try again.");
+    }
+  };
 
-          const availableSlots: { r: number; c: number }[] = [];
-          for (let r = 0; r < BRICK_ROWS; r++) {
-            for (let c = 0; c < BRICK_COLS; c++) {
-              if (!occupiedSlots.has(`${r}-${c}`)) {
-                availableSlots.push({ r, c });
-              }
+  // Switch to Base network
+  const switchToBase = async () => {
+    try {
+      const provider = await sdk.wallet.getEthereumProvider();
+      await provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: `0x${BASE_CHAIN_ID.toString(16)}` }],
+      });
+      console.log("Switched to Base network");
+    } catch (error) {
+      console.error("Failed to switch to Base network:", error);
+      // Try to add Base network if it doesn't exist
+      try {
+        const provider = await sdk.wallet.getEthereumProvider();
+        await provider.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: `0x${BASE_CHAIN_ID.toString(16)}`,
+              chainName: "Base",
+              nativeCurrency: {
+                name: "ETH",
+                symbol: "ETH",
+                decimals: 18,
+              },
+              rpcUrls: [BASE_RPC_URL],
+              blockExplorerUrls: ["https://basescan.org"],
+            },
+          ],
+        });
+      } catch (addError) {
+        console.error("Failed to add Base network:", addError);
+        setScoreSubmissionError(
+          "Please add Base network to your wallet manually.",
+        );
+      }
+    }
+  };
+
+  // Submit score to blockchain
+  const submitScoreToBlockchain = async (playerName, playerScore) => {
+    try {
+      setSubmittingScore(true);
+      setScoreSubmissionError("");
+
+      // Ensure wallet is connected
+      if (!walletConnected) {
+        await connectWallet();
+        if (!walletConnected) {
+          throw new Error("Wallet connection required");
+        }
+      }
+
+      // Switch to Base network
+      await switchToBase();
+
+      const provider = await sdk.wallet.getEthereumProvider();
+
+      // Create contract instance
+      const ethers = await import("ethers");
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      const contract = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        CONTRACT_ABI,
+        signer,
+      );
+
+      // Estimate gas for the transaction
+      const gasEstimate = await contract.submitScore.estimateGas(
+        playerName,
+        playerScore,
+      );
+
+      // Submit the transaction with gas fee
+      const tx = await contract.submitScore(playerName, playerScore, {
+        gasLimit: (gasEstimate * 120n) / 100n, // Add 20% buffer
+      });
+
+      console.log("Score submission transaction:", tx.hash);
+
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
+      console.log("Score submitted successfully:", receipt);
+
+      // Update local leaderboard
+      const newEntry = {
+        name: playerName.toUpperCase(),
+        score: playerScore,
+        txHash: tx.hash,
+      };
+      const newLeaderboard = [...leaderboard, newEntry]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+      saveLeaderboard(newLeaderboard);
+
+      setGameState("leaderboard");
+      setSubmittingScore(false);
+    } catch (error) {
+      console.error("Failed to submit score to blockchain:", error);
+      setScoreSubmissionError(`Failed to submit score: ${error.message}`);
+      setSubmittingScore(false);
+    }
+  };
+
+  const handleInitialsSubmit = (e) => {
+    e.preventDefault();
+    if (!initials) return;
+
+    if (walletConnected) {
+      // Submit to blockchain with gas fee
+      submitScoreToBlockchain(initials, score);
+    } else {
+      // Fallback to local storage
+      const newEntry = { name: initials.toUpperCase(), score };
+      const newLeaderboard = [...leaderboard, newEntry]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+      saveLeaderboard(newLeaderboard);
+      setGameState("leaderboard");
+    }
+  };
+
+  const activatePowerUp = (type) => {
+    switch (type) {
+      case POWER_UP_TYPES.STICKY:
+        setActivePowerUps((prev) => ({ ...prev, sticky: 3 }));
+        break;
+      case POWER_UP_TYPES.PAINT:
+        setGameState("color-picker");
+        break;
+      case POWER_UP_TYPES.INVINCIBLE:
+        setActivePowerUps((prev) => ({
+          ...prev,
+          invincibleEndTime: Date.now() + 7000,
+        }));
+        break;
+      case POWER_DOWN_TYPES.SHRINK_PADDLE:
+        setPaddleWidth(PADDLE_WIDTH_DEFAULT * 0.5); // Increased shrink strength
+        setActivePowerUps((prev) => ({
+          ...prev,
+          shrinkEndTime: Date.now() + 20000,
+        }));
+        break;
+      case POWER_DOWN_TYPES.ADD_BRICKS: {
+        const visibleBricks = bricks.filter((b) => b.visible);
+        const numToAdd = Math.ceil(visibleBricks.length * 0.15);
+        const occupiedSlots = new Set(
+          visibleBricks.map(
+            (b) =>
+              `${Math.round((b.y - 50 - BRICK_GAP) / (BRICK_HEIGHT + BRICK_GAP))}-${Math.round((b.x - BRICK_GAP) / (BRICK_WIDTH + BRICK_GAP))}`,
+          ),
+        );
+        const availableSlots = [];
+        for (let r = 0; r < BRICK_ROWS; r++) {
+          for (let c = 0; c < BRICK_COLS; c++) {
+            if (!occupiedSlots.has(`${r}-${c}`)) {
+              availableSlots.push({ r, c });
             }
           }
 
@@ -249,61 +593,159 @@ function App() {
           setBricks(newBricks);
           break;
         }
+
+        const newBricks = [...bricks];
+        for (let i = 0; i < numToAdd && availableSlots.length > 0; i++) {
+          const slotIndex = Math.floor(Math.random() * availableSlots.length);
+          const { r, c } = availableSlots.splice(slotIndex, 1)[0];
+          const color = COLORS.BRICK[r % COLORS.BRICK.length];
+          newBricks.push({
+            x: BRICK_GAP + c * (BRICK_WIDTH + BRICK_GAP),
+            y: BRICK_GAP + 50 + r * (BRICK_HEIGHT + BRICK_GAP),
+            w: BRICK_WIDTH,
+            h: BRICK_HEIGHT,
+            hp: 2, // New bricks are also solid
+            color: color,
+            originalColor: color,
+            visible: true,
+            powerUpType: null,
+          });
+        }
+        setBricks(newBricks);
+        break;
       }
     },
     [bricks, transition]
   );
 
-  // Handle color selection for paint power-up
-  const handleColorSelect = useCallback(
-    (color: string) => {
-      let clearedCount = 0;
-      const newBricks = bricks.map((brick) => {
-        if (brick.visible && brick.originalColor === color) {
-          clearedCount++;
-          return { ...brick, visible: false };
+  const handleColorSelect = (color) => {
+    let clearedCount = 0;
+    const newBricks = bricks.map((brick) => {
+      if (brick.visible && brick.originalColor === color) {
+        clearedCount++;
+        return { ...brick, visible: false };
+      }
+      return brick;
+    });
+    setBricks(newBricks);
+    setScore((prev) => prev + clearedCount * 10);
+    setGameState("playing");
+  };
+
+  // Handles resetting the ball after a life is lost
+  useEffect(() => {
+    if (gameState === "respawning") {
+      resetBallAndPaddle();
+      setGameState("playing");
+    }
+  }, [gameState, resetBallAndPaddle]);
+
+  // Game Loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    let animationFrameId;
+
+    const draw = () => {
+      // Clear canvas
+      ctx.fillStyle = "#0d0221";
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      // Draw Paddle
+      ctx.fillStyle = COLORS.PADDLE;
+      ctx.shadowColor = COLORS.SHADOW;
+      ctx.shadowBlur = 15;
+      ctx.fillRect(paddleX, PADDLE_Y, paddleWidth, PADDLE_HEIGHT);
+
+      // Draw Bricks
+      bricks.forEach((brick) => {
+        if (brick.visible) {
+          ctx.fillStyle = brick.color;
+          ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
         }
-        return brick;
       });
 
-      setBricks(newBricks);
-      incrementScore(clearedCount * POINTS_PER_BRICK);
-      transition('playing');
-    },
-    [bricks, incrementScore, transition]
-  );
+      // Draw Ball
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = COLORS.BALL;
+      ctx.fill();
+      ctx.closePath();
 
-  // Handle score submission
-  const handleScoreSubmit = useCallback(
-    async (initials: string) => {
-      const entry: LeaderboardEntry = {
-        name: initials.toUpperCase(),
-        score: stats.score,
-        timestamp: Date.now(),
-      };
+      ctx.shadowBlur = 0; // Reset shadow for text
 
-      await leaderboardService.saveScore(entry);
-      const newLeaderboard = await leaderboardService.getTopScores(10);
-      setLeaderboard(newLeaderboard);
-      transition('leaderboard');
-    },
-    [stats.score, transition]
-  );
+      // Draw Power-ups
+      ctx.font = "20px 'Press Start 2P'";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      powerUps.forEach((p) => {
+        const isPowerUp = Object.values(POWER_UP_TYPES).includes(p.type);
+        ctx.fillStyle = isPowerUp ? COLORS.POWER_UP : COLORS.POWER_DOWN;
+        let text = "";
+        if (p.type === POWER_UP_TYPES.STICKY) text = "S";
+        if (p.type === POWER_UP_TYPES.PAINT) text = "P";
+        if (p.type === POWER_UP_TYPES.INVINCIBLE) text = "I";
+        if (p.type === POWER_DOWN_TYPES.ADD_BRICKS) text = "+";
+        if (p.type === POWER_DOWN_TYPES.SHRINK_PADDLE) text = "-";
+        ctx.fillText(text, p.x, p.y);
+      });
 
-  // Game loop
-  useEffect(() => {
-    if (state !== 'playing') return;
+      // Draw HUD
+      ctx.fillStyle = COLORS.TEXT;
+      ctx.font = "20px 'Press Start 2P'";
+      ctx.textBaseline = "top";
+
+      // Score (left-aligned)
+      ctx.textAlign = "left";
+      ctx.fillText(`Score: ${scoreRef.current}`, 20, 20);
+
+      // Level (center-aligned)
+      ctx.textAlign = "center";
+      ctx.fillText(`Level: ${levelRef.current}`, CANVAS_WIDTH / 2, 20);
+
+      // Lives (right-aligned)
+      ctx.textAlign = "right";
+      // Shifted left to make space for the pause button
+      ctx.fillText(`Lives: ${livesRef.current}`, CANVAS_WIDTH - 180, 20);
+
+      // Reset canvas context state for other potential draws
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    };
+
+    const update = () => {
+      if (gameState !== "playing") return;
 
     const gameLoop = () => {
       // Update power-up timers
       const now = Date.now();
       if (activePowerUps.shrinkEndTime && now > activePowerUps.shrinkEndTime) {
-        setPaddle((prev) => ({ ...prev, width: PADDLE_WIDTH_DEFAULT }));
+        setPaddleWidth(PADDLE_WIDTH_DEFAULT);
         setActivePowerUps((prev) => ({ ...prev, shrinkEndTime: 0 }));
       }
-      if (activePowerUps.invincibleEndTime && now > activePowerUps.invincibleEndTime) {
+      if (
+        activePowerUps.invincibleEndTime &&
+        now > activePowerUps.invincibleEndTime
+      ) {
         setActivePowerUps((prev) => ({ ...prev, invincibleEndTime: 0 }));
       }
+
+      // Update falling powerups
+      const newPowerUps = powerUps
+        .map((p) => ({ ...p, y: p.y + POWER_UP_SPEED }))
+        .filter((p) => {
+          if (
+            p.y > PADDLE_Y &&
+            p.y < PADDLE_Y + PADDLE_HEIGHT &&
+            p.x > paddleX &&
+            p.x < paddleX + paddleWidth
+          ) {
+            activatePowerUp(p.type);
+            return false; // remove from list
+          }
+          return p.y < CANVAS_HEIGHT; // remove if off screen
+        });
+      setPowerUps(newPowerUps);
 
       // Update falling power-ups
       setPowerUps((prev) =>
@@ -326,19 +768,21 @@ function App() {
 
       // Update ball
       if (ball.attached) {
-        setBall((prev) => ({
-          ...prev,
-          position: { x: paddle.position.x + paddle.width / 2, y: prev.position.y },
-        }));
+        setBall((prev) => ({ ...prev, x: paddleX + paddleWidth / 2 }));
+        // Don't return, let the rest of the game logic like powerup timers run
       } else {
+        let newBall = { ...ball };
         const speedMultiplier = activePowerUps.invincibleEndTime > 0 ? 1.2 : 1;
         const newBall = { ...ball };
         newBall.position.x += newBall.velocity.x * speedMultiplier;
         newBall.position.y += newBall.velocity.y * speedMultiplier;
 
-        // Wall collisions
-        if (newBall.position.x + BALL_RADIUS > CANVAS_WIDTH || newBall.position.x - BALL_RADIUS < 0) {
-          newBall.velocity.x = -newBall.velocity.x;
+        // Wall collision
+        if (
+          newBall.x + BALL_RADIUS > CANVAS_WIDTH ||
+          newBall.x - BALL_RADIUS < 0
+        ) {
+          newBall.dx = -newBall.dx;
         }
         if (newBall.position.y - BALL_RADIUS < 0) {
           newBall.velocity.y = -newBall.velocity.y;
@@ -346,53 +790,42 @@ function App() {
 
         // Paddle collision
         if (
-          circleRectCollision(
-            { x: newBall.position.x, y: newBall.position.y, radius: BALL_RADIUS },
-            { x: paddle.position.x, y: paddle.position.y, width: paddle.width, height: paddle.height }
-          )
+          newBall.y + BALL_RADIUS > PADDLE_Y &&
+          newBall.y - BALL_RADIUS < PADDLE_Y + PADDLE_HEIGHT &&
+          newBall.x > paddleX &&
+          newBall.x < paddleX + paddleWidth
         ) {
           if (activePowerUps.sticky > 0) {
             newBall.attached = true;
           } else {
-            newBall.velocity.y = -Math.abs(newBall.velocity.y);
-            const deltaX = newBall.position.x - (paddle.position.x + paddle.width / 2);
-            newBall.velocity.x = deltaX * 0.2;
+            newBall.dy = -newBall.dy;
+            let deltaX = newBall.x - (paddleX + paddleWidth / 2);
+            newBall.dx = deltaX * 0.2;
           }
         }
 
         // Brick collisions
         let bricksLeft = false;
-        const newBricks = bricks.map((brick) => {
+        newBricks.forEach((brick) => {
           if (brick.visible) {
             if (
-              circleRectCollision(
-                { x: newBall.position.x, y: newBall.position.y, radius: BALL_RADIUS },
-                {
-                  x: brick.position.x,
-                  y: brick.position.y,
-                  width: brick.dimensions.width,
-                  height: brick.dimensions.height,
-                }
-              )
+              newBall.x > brick.x &&
+              newBall.x < brick.x + brick.w &&
+              newBall.y > brick.y &&
+              newBall.y < brick.y + brick.h
             ) {
-              newBall.velocity.y = -newBall.velocity.y;
+              newBall.dy = -newBall.dy;
               brick.hp -= 1;
-
               if (brick.hp <= 0) {
                 brick.visible = false;
-                incrementScore(POINTS_PER_BRICK);
-
+                newScore += 10;
                 if (brick.powerUpType) {
                   setPowerUps((prev) => [
                     ...prev,
                     {
-                      position: {
-                        x: brick.position.x + brick.dimensions.width / 2,
-                        y: brick.position.y + brick.dimensions.height / 2,
-                      },
-                      velocity: { x: 0, y: POWER_UP_SPEED },
-                      type: brick.powerUpType as PowerType,
-                      size: POWER_UP_SIZE,
+                      x: brick.x + brick.w / 2,
+                      y: brick.y + brick.h / 2,
+                      type: brick.powerUpType,
                     },
                   ]);
                 }
@@ -400,34 +833,37 @@ function App() {
                 brick.color = COLORS.BRICK_DAMAGED;
               }
             }
-
             if (brick.visible) bricksLeft = true;
           }
-          return brick;
         });
 
+        setScore(newScore);
         setBricks(newBricks);
 
         // Level complete
         if (!bricksLeft) {
-          nextLevel();
-          transition('level-complete');
+          setLevel((prev) => prev + 1);
+          setGameState("level-complete");
           setTimeout(() => startNewLevel(), 2000);
-          return;
+          return; // Exit update loop to prevent further ball movement
         }
 
-        // Bottom wall (lose life)
-        if (newBall.position.y + BALL_RADIUS >= CANVAS_HEIGHT) {
+        // Bottom wall collision (lose life)
+        if (newBall.y + BALL_RADIUS >= CANVAS_HEIGHT) {
+          // More robust boundary check
           if (activePowerUps.invincibleEndTime > 0) {
-            newBall.velocity.y = -newBall.velocity.y;
+            newBall.dy = -newBall.dy;
+            setBall(newBall);
           } else {
-            const gameOver = decrementLives();
-            if (gameOver) {
-              transition('game-over');
+            const newLives = lives - 1;
+            if (newLives > 0) {
+              setLives(newLives);
+              setGameState("respawning");
             } else {
-              resetBallAndPaddle();
+              setLives(0); // Ensure lives is 0 on game over
+              setGameState("game-over");
             }
-            return;
+            return; // Stop the update loop. A state change will restart it.
           }
         }
 
@@ -442,80 +878,225 @@ function App() {
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     };
 
-    animationFrameRef.current = requestAnimationFrame(gameLoop);
+    gameLoop();
 
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [
-    state,
-    paddle,
-    ball,
-    bricks,
-    powerUps,
-    stats,
-    activePowerUps,
-    incrementScore,
-    decrementLives,
-    nextLevel,
-    transition,
-    startNewLevel,
-    resetBallAndPaddle,
-    activatePowerUp,
-  ]);
+  }, [gameState, startNewLevel]);
 
-  if (!isReady) {
-    return <div className="loading">Initializing...</div>;
-  }
+  const togglePause = () => {
+    if (gameState === "playing") {
+      setGameState("paused");
+    } else if (gameState === "paused") {
+      setGameState("playing");
+    }
+  };
+
+  const renderUI = () => {
+    if (gameState === "playing") return null;
+
+    if (loading) {
+      return (
+        <div className="game-ui">
+          <h2>Generating Level {level}...</h2>
+          <div className="loader"></div>
+        </div>
+      );
+    }
+
+    switch (gameState) {
+      case "start":
+        return (
+          <div className="game-ui">
+            <h1>Frame Breaker '85</h1>
+            <p>An AI-Powered Brick Smasher</p>
+            <button onClick={startGame}>Start Game</button>
+            <button onClick={() => setGameState("leaderboard")}>
+              Leaderboard
+            </button>
+          </div>
+        );
+      case "paused":
+        return (
+          <div className="game-ui paused">
+            <h2>Paused</h2>
+            <button onClick={() => setGameState("playing")}>Resume</button>
+            <button onClick={startGame}>Restart Game</button>
+            <button onClick={() => setGameState("start")}>Main Menu</button>
+          </div>
+        );
+      case "level-complete":
+        return (
+          <div className="game-ui">
+            <h2>Level {level - 1} Complete!</h2>
+            <p>Get ready for the next level!</p>
+          </div>
+        );
+      case "game-over":
+        return (
+          <div className="game-ui">
+            <h1>Game Over</h1>
+            <p>Final Score: {score}</p>
+
+            {/* Wallet Connection Status */}
+            <div className="wallet-status">
+              {walletConnected ? (
+                <div className="wallet-connected">
+                  <span>✅ Wallet Connected</span>
+                  <span className="wallet-address">
+                    {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                  </span>
+                </div>
+              ) : (
+                <div className="wallet-disconnected">
+                  <span>🔗 Connect Wallet to submit to Base chain</span>
+                  <button
+                    onClick={connectWallet}
+                    className="connect-wallet-btn"
+                  >
+                    Connect Wallet
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Score Submission Form */}
+            <form onSubmit={handleInitialsSubmit}>
+              <div className="input-group">
+                <input
+                  type="text"
+                  value={initials}
+                  onChange={(e) => setInitials(e.target.value.slice(0, 3))}
+                  maxLength={3}
+                  placeholder="AAA"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  disabled={submittingScore}
+                  className={
+                    walletConnected
+                      ? "submit-blockchain-btn"
+                      : "submit-local-btn"
+                  }
+                >
+                  {submittingScore
+                    ? "Submitting..."
+                    : walletConnected
+                      ? "Submit to Base Chain (Gas Fee)"
+                      : "Save Locally"}
+                </button>
+              </div>
+            </form>
+
+            {/* Error Messages */}
+            {scoreSubmissionError && (
+              <div className="error-message">{scoreSubmissionError}</div>
+            )}
+
+            {/* Submission Info */}
+            {walletConnected && (
+              <div className="submission-info">
+                <p>
+                  💡 Submitting to Base chain requires a small gas fee
+                  (~$0.01-0.05)
+                </p>
+                <p>
+                  Your score will be permanently recorded on the blockchain!
+                </p>
+              </div>
+            )}
+
+            <button onClick={startGame}>Play Again</button>
+            <button onClick={() => setGameState("leaderboard")}>
+              Leaderboard
+            </button>
+          </div>
+        );
+      case "leaderboard":
+        return (
+          <div className="game-ui">
+            <h1>High Scores</h1>
+            <ol className="leaderboard">
+              {leaderboard.length > 0 ? (
+                leaderboard.map((entry, index) => (
+                  <li key={index}>
+                    <span className="leaderboard-name">{entry.name}</span>
+                    <span className="leaderboard-score">{entry.score}</span>
+                    {entry.txHash && (
+                      <span className="blockchain-badge">
+                        🔗{" "}
+                        <a
+                          href={`https://basescan.org/tx/${entry.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View on Base
+                        </a>
+                      </span>
+                    )}
+                  </li>
+                ))
+              ) : (
+                <p>No scores yet. Be the first!</p>
+              )}
+            </ol>
+            <button onClick={() => setGameState("start")}>Main Menu</button>
+          </div>
+        );
+      case "color-picker":
+        return (
+          <div className="game-ui">
+            <h2>Paint Palette!</h2>
+            <p>Choose a color to eliminate all bricks of that type.</p>
+            <div className="color-picker-buttons">
+              {COLORS.BRICK.map((color) => (
+                <button
+                  key={color}
+                  style={{
+                    backgroundColor: color,
+                    borderColor: color,
+                    textShadow: "0 0 5px #000",
+                    width: "100px",
+                    height: "50px",
+                  }}
+                  onClick={() => handleColorSelect(color)}
+                ></button>
+              ))}
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div id="game-container">
       <div
         id="game-wrapper"
-        onMouseMove={(e) => handlePointerMove(e.clientX)}
-        onTouchMove={(e) => e.touches[0] && handlePointerMove(e.touches[0].clientX)}
+        onMouseMove={handleMouseMove}
+        onTouchMove={handleTouchMove}
         onClick={handleClick}
         onTouchStart={handleClick}
-        style={{ cursor: state === 'playing' || state === 'paused' ? 'none' : 'auto' }}
+        style={{
+          cursor:
+            gameState === "playing" || gameState === "paused" ? "none" : "auto",
+        }}
       >
-        <div className="scanlines" />
-
-        <Suspense fallback={<div className="loading">Loading...</div>}>
-          {state === 'start' && <StartScreen onStart={startGame} onLeaderboard={() => transition('leaderboard')} />}
-          {state === 'paused' && (
-            <PauseScreen
-              onResume={() => transition('playing')}
-              onRestart={startGame}
-              onMainMenu={() => transition('start')}
-            />
-          )}
-          {state === 'loading' && <LoadingScreen level={stats.level} />}
-          {state === 'level-complete' && <LevelCompleteScreen level={stats.level - 1} />}
-          {state === 'game-over' && (
-            <GameOverScreen
-              score={stats.score}
-              onSubmit={handleScoreSubmit}
-              onPlayAgain={startGame}
-              onLeaderboard={() => transition('leaderboard')}
-            />
-          )}
-          {state === 'leaderboard' && (
-            <LeaderboardScreen leaderboard={leaderboard} onMainMenu={() => transition('start')} />
-          )}
-          {state === 'color-picker' && <ColorPickerScreen colors={[...COLORS.BRICK]} onSelect={handleColorSelect} />}
-        </Suspense>
-
+        <div className="scanlines"></div>
+        {renderUI()}
         <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
-
-        {(state === 'playing' || state === 'paused') && (
+        {(gameState === "playing" || gameState === "paused") && (
           <button
             className="pause-button"
-            onClick={() => transition(state === 'playing' ? 'paused' : 'playing')}
-            aria-label={state === 'playing' ? 'Pause Game' : 'Resume Game'}
+            onClick={togglePause}
+            aria-label={gameState === "playing" ? "Pause Game" : "Resume Game"}
           >
-            {state === 'playing' ? 'PAUSE' : 'RESUME'}
+            {gameState === "playing" ? "PAUSE" : "RESUME"}
           </button>
         )}
       </div>
