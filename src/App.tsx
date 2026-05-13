@@ -214,12 +214,13 @@ function App() {
     dy: -4,
     attached: true,
   });
-  const [bricks, setBricks] = useState([]);
-  const [powerUps, setPowerUps] = useState([]);
-  const [activePowerUps, setActivePowerUps] = useState({
-    sticky: 0, // uses
-    shrinkEndTime: 0, // timestamp
-    invincibleEndTime: 0, // timestamp
+
+  const [bricks, setBricks] = useState<BrickData[]>([]);
+  const [powerUps, setPowerUps] = useState<PowerUpData[]>([]);
+  const [activePowerUps, setActivePowerUps] = useState<ActivePowerUps>({
+    sticky: 0,
+    shrinkEndTime: 0,
+    invincibleEndTime: 0,
   });
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(INITIAL_LIVES);
@@ -249,9 +250,8 @@ function App() {
       }
     };
 
-    // Initialize SDK after app is fully loaded and ready to display
-    initializeSDK();
-  }, []);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
   // Check wallet connection
   const checkWalletConnection = async () => {
@@ -272,7 +272,7 @@ function App() {
     }
   };
 
-  // Load leaderboard from localStorage
+  // Load leaderboard
   useEffect(() => {
     try {
       const savedLeaderboard = localStorage.getItem("frameBreakerLeaderboard");
@@ -316,25 +316,28 @@ function App() {
   };
 
   const resetBallAndPaddle = useCallback(() => {
-    setPaddleWidth(PADDLE_WIDTH_DEFAULT);
-    setActivePowerUps({ sticky: 0, shrinkEndTime: 0, invincibleEndTime: 0 });
-    setPowerUps([]);
     const newPaddleX = (CANVAS_WIDTH - PADDLE_WIDTH_DEFAULT) / 2;
-    setPaddleX(newPaddleX);
+    setPaddle({
+      position: { x: newPaddleX, y: PADDLE_Y },
+      width: PADDLE_WIDTH_DEFAULT,
+      height: 20,
+    });
     setBall({
-      x: newPaddleX + PADDLE_WIDTH_DEFAULT / 2,
-      y: PADDLE_Y - BALL_RADIUS,
-      dx: 4,
-      dy: -4,
+      position: { x: newPaddleX + PADDLE_WIDTH_DEFAULT / 2, y: PADDLE_Y - BALL_RADIUS },
+      velocity: { x: 4, y: -4 },
+      radius: BALL_RADIUS,
       attached: true,
     });
+    setActivePowerUps({ sticky: 0, shrinkEndTime: 0, invincibleEndTime: 0 });
+    setPowerUps([]);
   }, []);
 
   const startNewLevel = useCallback(async () => {
     setLoading(true);
     setGameState("loading");
     resetBallAndPaddle();
-    const newBricks = await generateLevel();
+
+    const newBricks = await levelGenerator.generateLevel(stats.level);
     setBricks(newBricks);
     setLoading(false);
     setGameState("playing");
@@ -566,6 +569,29 @@ function App() {
               availableSlots.push({ r, c });
             }
           }
+
+          const newBricks = [...bricks];
+          for (let i = 0; i < numToAdd && availableSlots.length > 0; i++) {
+            const slotIndex = Math.floor(Math.random() * availableSlots.length);
+            const { r, c } = availableSlots.splice(slotIndex, 1)[0];
+            const color = COLORS.BRICK[r % COLORS.BRICK.length];
+
+            newBricks.push({
+              position: {
+                x: BRICK_GAP + c * (BRICK_WIDTH + BRICK_GAP),
+                y: BRICK_GAP + 50 + r * (BRICK_HEIGHT + BRICK_GAP),
+              },
+              dimensions: { width: BRICK_WIDTH, height: BRICK_HEIGHT },
+              hp: 2,
+              maxHp: 2,
+              color,
+              originalColor: color,
+              visible: true,
+              powerUpType: null,
+            });
+          }
+          setBricks(newBricks);
+          break;
         }
 
         const newBricks = [...bricks];
@@ -588,8 +614,9 @@ function App() {
         setBricks(newBricks);
         break;
       }
-    }
-  };
+    },
+    [bricks, transition]
+  );
 
   const handleColorSelect = (color) => {
     let clearedCount = 0;
@@ -689,7 +716,8 @@ function App() {
     const update = () => {
       if (gameState !== "playing") return;
 
-      // Update Powerup Timers
+    const gameLoop = () => {
+      // Update power-up timers
       const now = Date.now();
       if (activePowerUps.shrinkEndTime && now > activePowerUps.shrinkEndTime) {
         setPaddleWidth(PADDLE_WIDTH_DEFAULT);
@@ -719,14 +747,35 @@ function App() {
         });
       setPowerUps(newPowerUps);
 
+      // Update falling power-ups
+      setPowerUps((prev) =>
+        prev
+          .map((p) => ({ ...p, position: { ...p.position, y: p.position.y + POWER_UP_SPEED } }))
+          .filter((p) => {
+            // Check collision with paddle
+            if (
+              p.position.y > paddle.position.y &&
+              p.position.y < paddle.position.y + paddle.height &&
+              p.position.x > paddle.position.x &&
+              p.position.x < paddle.position.x + paddle.width
+            ) {
+              activatePowerUp(p.type);
+              return false;
+            }
+            return p.position.y < CANVAS_HEIGHT;
+          })
+      );
+
+      // Update ball
       if (ball.attached) {
         setBall((prev) => ({ ...prev, x: paddleX + paddleWidth / 2 }));
         // Don't return, let the rest of the game logic like powerup timers run
       } else {
         let newBall = { ...ball };
         const speedMultiplier = activePowerUps.invincibleEndTime > 0 ? 1.2 : 1;
-        newBall.x += newBall.dx * speedMultiplier;
-        newBall.y += newBall.dy * speedMultiplier;
+        const newBall = { ...ball };
+        newBall.position.x += newBall.velocity.x * speedMultiplier;
+        newBall.position.y += newBall.velocity.y * speedMultiplier;
 
         // Wall collision
         if (
@@ -735,8 +784,8 @@ function App() {
         ) {
           newBall.dx = -newBall.dx;
         }
-        if (newBall.y - BALL_RADIUS < 0) {
-          newBall.dy = -newBall.dy;
+        if (newBall.position.y - BALL_RADIUS < 0) {
+          newBall.velocity.y = -newBall.velocity.y;
         }
 
         // Paddle collision
@@ -755,9 +804,7 @@ function App() {
           }
         }
 
-        // Brick collision
-        let newBricks = [...bricks];
-        let newScore = score;
+        // Brick collisions
         let bricksLeft = false;
         newBricks.forEach((brick) => {
           if (brick.visible) {
@@ -793,7 +840,7 @@ function App() {
         setScore(newScore);
         setBricks(newBricks);
 
-        // Check for level complete
+        // Level complete
         if (!bricksLeft) {
           setLevel((prev) => prev + 1);
           setGameState("level-complete");
@@ -818,22 +865,25 @@ function App() {
             }
             return; // Stop the update loop. A state change will restart it.
           }
-        } else {
-          setBall(newBall);
         }
-      }
-    };
 
-    const gameLoop = () => {
-      update();
-      draw();
-      animationFrameId = window.requestAnimationFrame(gameLoop);
+        setBall(newBall);
+      }
+
+      // Render
+      if (rendererRef.current) {
+        rendererRef.current.render(paddle, ball, bricks, powerUps, stats);
+      }
+
+      animationFrameRef.current = requestAnimationFrame(gameLoop);
     };
 
     gameLoop();
 
     return () => {
-      window.cancelAnimationFrame(animationFrameId);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
   }, [gameState, startNewLevel]);
 

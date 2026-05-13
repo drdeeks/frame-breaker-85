@@ -1,0 +1,227 @@
+/**
+ * @fileoverview Responsive design styles with auto-scaling text
+ * @module styles/responsive
+ */
+
+/* CSS Custom Properties for Responsive Design */
+:root {
+  /* Fluid typography using clamp() for auto-scaling */
+  --font-size-xs: clamp(0.6rem, 1.5vw, 0.8rem);
+  --font-size-sm: clamp(0.8rem, 2vw, 1rem);
+  --font-size-md: clamp(1rem, 2.5vw, 1.2rem);
+  --font-size-lg: clamp(1.5rem, 4vw, 2rem);
+  --font-size-xl: clamp(2rem, 5vw, 3rem);
+  --font-size-xxl: clamp(2.5rem, 6vw, 4rem);
+  
+  /* Responsive spacing */
+  --spacing-xs: clamp(0.25rem, 1vw, 0.5rem);
+  --spacing-sm: clamp(0.5rem, 2vw, 1rem);
+  --spacing-md: clamp(1rem, 3vw, 1.5rem);
+  --spacing-lg: clamp(1.5rem, 4vw, 2rem);
+  --spacing-xl: clamp(2rem, 5vw, 3rem);
+  
+  /* Button sizes */
+  --button-height: clamp(40px, 8vw, 60px);
+  --button-padding: clamp(10px, 3vw, 30px);
+  --button-font-size: clamp(0.8rem, 2.5vw, 1.2rem);
+}
+
+/* Farcaster Mini App specific optimizations */
+@media (max-width: 428px) {
+  :root {
+    /* Smaller text for mobile Farcaster clients */
+    --font-size-xs: clamp(0.5rem, 3vw, 0.7rem);
+    --font-size-sm: clamp(0.7rem, 3.5vw, 0.9rem);
+    --font-size-md: clamp(0.9rem, 4vw, 1.1rem);
+    --font-size-lg: clamp(1.2rem, 5vw, 1.8rem);
+    --font-size-xl: clamp(1.8rem, 6vw, 2.5rem);
+    --font-size-xxl: clamp(2rem, 7vw, 3rem);
+    
+    /* Tighter spacing on mobile */
+    --spacing-xs: clamp(0.2rem, 1vw, 0.4rem);
+    --spacing-sm: clamp(0.4rem, 1.5vw, 0.8rem);
+    --spacing-md: clamp(0.8rem, 2.5vw, 1.2rem);
+    --spacing-lg: clamp(1.2rem, 3.5vw, 1.8rem);
+    --spacing-xl: clamp(1.8rem, 4.5vw, 2.5rem);
+    
+    /* Touch-friendly buttons */
+    --button-height: clamp(44px, 10vw, 56px);
+    --button-padding: clamp(12px, 4vw, 24px);
+    --button-font-size: clamp(0.7rem, 3vw, 1rem);
+  }
+}
+
+/* Game container responsive sizing */
+#game-container {
+  width: min(95vw, 840px);
+  height: auto;
+  padding: var(--spacing-md);
+  margin: var(--spacing-sm) auto;
+}
+
+#game-wrapper {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 800 / 600; /* Maintain 4:3 aspect ratio */
+  max-width: 800px;
+  max-height: 600px;
+}
+
+/* Responsive canvas */
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+}
+
+/* UI text scaling */
+.game-ui h1 {
+  font-size: var(--font-size-xxl);
+  margin-bottom: var(--spacing-md);
+}
+
+.game-ui h2 {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-sm);
+}
+
+.game-ui p {
+  font-size: var(--font-size-md);
+  margin: var(--spacing-sm) 0;
+  padding: 0 var(--spacing-sm);
+}
+
+/* Responsive buttons */
+.game-ui button {
+  font-size: var(--button-font-size);
+  height: var(--button-height);
+  padding: 0 var(--button-padding);
+  margin: var(--spacing-sm);
+  min-width: clamp(120px, 30vw, 250px);
+}
+
+/* Input fields */
+.input-group input {
+  font-size: var(--font-size-md);
+  width: clamp(60px, 15vw, 100px);
+  height: var(--button-height);
+  padding: var(--spacing-xs);
+}
+
+/* Leaderboard responsive */
+.leaderboard {
+  width: min(90vw, 450px);
+  padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) var(--spacing-xl);
+  margin-top: var(--spacing-md);
+}
+
+.leaderboard li {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+/* Color picker responsive */
+.color-picker-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  justify-content: center;
+  margin-top: var(--spacing-md);
+}
+
+.color-picker-buttons button {
+  width: clamp(60px, 15vw, 100px);
+  height: clamp(30px, 8vw, 50px);
+  flex-shrink: 0;
+}
+
+/* Pause button responsive */
+.pause-button {
+  font-size: var(--font-size-sm);
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  padding: var(--spacing-xs);
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 428px) {
+  #game-container {
+    width: 98vw;
+    padding: var(--spacing-sm);
+    border-radius: 15px;
+  }
+  
+  .game-ui {
+    padding: var(--spacing-sm);
+  }
+  
+  .input-group {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .input-group input {
+    margin-right: 0;
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .color-picker-buttons button {
+    width: clamp(50px, 20vw, 80px);
+    height: clamp(25px, 10vw, 40px);
+  }
+}
+
+/* Portrait orientation adjustments */
+@media (max-width: 428px) and (orientation: portrait) {
+  :root {
+    --font-size-xl: clamp(1.5rem, 5vw, 2.2rem);
+    --font-size-xxl: clamp(1.8rem, 6vw, 2.8rem);
+  }
+  
+  #game-wrapper {
+    aspect-ratio: 800 / 600;
+    max-height: 60vh;
+  }
+  
+  .game-ui {
+    padding: var(--spacing-xs);
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Accessibility - Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .scanlines {
+    animation: none;
+  }
+  
+  .game-ui h1 {
+    animation: none;
+  }
+  
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Focus indicators for keyboard navigation */
+@media (prefers-reduced-motion: no-preference) {
+  button:focus-visible {
+    outline: 2px solid var(--secondary-color);
+    outline-offset: 2px;
+    animation: pulse 1s infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
