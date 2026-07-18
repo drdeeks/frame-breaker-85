@@ -1,5 +1,8 @@
 # Frame Breaker '85
 
+[![DrDeeks Project](https://img.shields.io/badge/DrDeeks%20Project-171718?style=flat-square&labelColor=b84d32)](https://github.com/drdeeks)
+
+
 An AI-powered brick breaker game with retro aesthetics and modern features, built as a Farcaster Mini App. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.
 
 ## 🚀 Farcaster Mini App
@@ -69,12 +72,8 @@ This game is designed to run as a Mini App within Farcaster clients. It integrat
 ## Installation & Setup
 
 ### Prerequisites
-<<<<<<< HEAD
 
 - **Node.js 22.11.0 or higher** (LTS version recommended) - Required for Farcaster Mini Apps
-=======
-- Node.js (v22.11.0 or higher) - Required for Farcaster Mini Apps
->>>>>>> 86cc80689a7fafafa952500af1ed17941b8f553d
 - Google Gemini AI API key
 - Farcaster account with Developer Mode enabled
 
@@ -141,12 +140,9 @@ To test this Mini App in Farcaster:
 - **Discovery File**: `.well-known/farcaster.json` for Mini App discovery
 - **Responsive Design**: Optimized for Farcaster client viewports
 - **Authentication Ready**: Prepared for Farcaster Quick Auth integration
-<<<<<<< HEAD
 - **Notification Support**: Ready for push notifications
 - **Wallet Integration**: Ethereum wallet connection for Base chain transactions
 - **Smart Contract**: Solidity contract for blockchain score submissions
-=======
->>>>>>> 86cc80689a7fafafa952500af1ed17941b8f553d
 
 ### Game Configuration
 
@@ -265,7 +261,6 @@ Make sure to create and upload these assets to your deployment:
 - Try refreshing the page
 - Check if browser supports touch events
 
-<<<<<<< HEAD
 ## Mini App Deployment
 
 ### Building for Production
@@ -306,8 +301,6 @@ Make sure to create and upload these assets to your deployment:
 - `hero.png` - Hero image for the Mini App directory
 - `screenshot1.png`, `screenshot2.png`, `screenshot3.png` - Game screenshots
 
-=======
->>>>>>> 86cc80689a7fafafa952500af1ed17941b8f553d
 ## Contributing
 
 Feel free to contribute improvements:
