@@ -1,5 +1,7 @@
 # Frame Breaker '85
 
+[![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?logo=node.js&logoColor=white)](package.json) [![React](https://img.shields.io/badge/React-frontend-61dafb?logo=react&logoColor=111111)](package.json) [![Farcaster](https://img.shields.io/badge/Farcaster-Mini%20App-855DCD)](https://www.farcaster.xyz/)
+
 An AI-powered brick breaker game with retro aesthetics and modern features, built as a Farcaster Mini App. Each level is dynamically generated using Google's Gemini AI to create unique, challenging patterns.
 
 ## 🚀 Farcaster Mini App
